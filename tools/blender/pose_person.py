@@ -80,12 +80,17 @@ def apply_pose(rig, steps):
         pb.matrix_basis = Matrix.Identity(4)
     bpy.context.view_layer.update()
     for name, axis, degrees in steps:
-        pb = rig.pose.bones[name]
-        head = pb.head.copy()
-        turn = Matrix.Translation(head) @ Matrix.Rotation(math.radians(degrees), 4, AXES[axis]) @ Matrix.Translation(-head)
-        pb.matrix = turn @ pb.matrix
-        bpy.context.view_layer.update()
+        turn(rig, name, axis, degrees)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def turn(rig, name, axis, degrees):
+    """Turn a pose bone about an armature-space axis through its own head, carrying its children."""
+    pb = rig.pose.bones[name]
+    head = pb.head.copy()
+    pb.matrix = (Matrix.Translation(head) @ Matrix.Rotation(math.radians(degrees), 4, AXES[axis])
+                 @ Matrix.Translation(-head) @ pb.matrix)
+    bpy.context.view_layer.update()
 
 
 def render_views(out_dir):

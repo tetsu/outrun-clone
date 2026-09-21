@@ -84,7 +84,8 @@ export class Renderer {
     // The car's own attitude: nose into the turn, and tilted with the slope it stands on
     // relative to the level camera.
     const curve = segmentAt(track, state.z).curve;
-    const yaw = state.steer * 13 * Math.min(1, speedRatio * 3) + curve * 1800 * speedRatio;
+    // Full lock plus the tightest bend reaches the outermost frames (±24°).
+    const yaw = state.steer * 17 * Math.min(1, speedRatio * 3) + curve * 1800 * speedRatio;
     const slope = (game.roadHeight(state.z + 2) - game.roadHeight(state.z - 2)) / 4;
     const pitch = (Math.atan(slope) * 180) / Math.PI;
 

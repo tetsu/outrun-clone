@@ -8,6 +8,10 @@ part of the view that holds the car.
 Frames: every steering yaw x every road pitch. Frame index = pitch_index * len(YAWS) + yaw_index.
 Positive yaw turns the nose to the right of the screen; positive pitch lifts the nose (uphill).
 
+Seated characters move with each frame: in a turn their upper bodies sway towards the outside
+of the bend, and on a slope they lean to stay nearer upright, with the head turning back a
+little against both. The driver's hands are put back on the wheel after every lean.
+
 Usage:
   blender --background --factory-startup --python tools/blender/render_car.py -- <in.blend> <out_dir>
 """
@@ -20,6 +24,10 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pose_person import reach, turn  # noqa: E402
+from seat_person import WHEEL_NORMAL, wheel_point  # noqa: E402
+
 argv = sys.argv[sys.argv.index("--") + 1:]
 in_blend, out_dir = argv[0], argv[1]
 os.makedirs(out_dir, exist_ok=True)
@@ -30,11 +38,17 @@ CAMERA_DISTANCE = 6.5     # metres behind the car's centre
 VFOV_DEG = 60.0
 REFERENCE_SCREEN_HEIGHT = 1440   # a frame is 1:1 on a screen this many pixels tall
 
-FRAME_W, FRAME_H = 1024, 576
-FRAME_TOP = 60            # frame's top edge, in pixels below the view's principal point
-YAWS = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
-PITCHES = [-6, 0, 6]
-COLUMNS = 5
+# Wide enough for the tail swinging out at full lock; the rows under the car were empty.
+FRAME_W, FRAME_H = 1024, 512
+FRAME_TOP = 50            # frame's top edge, in pixels below the view's principal point
+YAWS = list(range(-24, 25, 4))       # 13 steering frames
+PITCHES = [-10, -5, 0, 5, 10]        # 5 slope frames
+COLUMNS = 8
+
+# Occupants' body motion, degrees per degree of the car's attitude.
+SWAY_PER_YAW = 8.0 / 24    # upper body towards the outside of the bend
+LEAN_PER_PITCH = 0.4       # upper body against the slope, towards upright
+HEAD_RETURN = 0.4          # share of the body's lean the head turns back
 
 bpy.ops.wm.open_mainfile(filepath=in_blend)
 scene = bpy.context.scene
@@ -89,6 +103,33 @@ cam.rotation_euler = (math.radians(90), 0.0, math.radians(180))   # level, looki
 scene.collection.objects.link(cam)
 scene.camera = cam
 
+car = bpy.data.objects["car"]
+rigs = [o for o in riders if o.type == "ARMATURE"]
+base_pose = {rig.name: {pb.name: pb.matrix_basis.copy() for pb in rig.pose.bones} for rig in rigs}
+
+
+def pose_occupants(yaw, pitch):
+    """Sway and lean the seated characters for this attitude of the car."""
+    sway = SWAY_PER_YAW * yaw        # a right turn (yaw > 0) throws them towards the car's left, +X
+    lean = LEAN_PER_PITCH * pitch    # uphill (pitch > 0) they lean forwards, -Y
+    for rig in rigs:
+        for pb in rig.pose.bones:
+            pb.matrix_basis = base_pose[rig.name][pb.name]
+        bpy.context.view_layer.update()
+        # Axes are the armature's, which are the car's: +Y is backwards, so a positive turn about
+        # Y tips the head to +X, and a positive turn about X tips it forwards.
+        turn(rig, "spine", "y", sway * 0.6)
+        turn(rig, "chest", "y", sway * 0.4)
+        turn(rig, "spine", "x", lean)
+        turn(rig, "head", "y", -sway * HEAD_RETURN)
+        turn(rig, "head", "x", -lean * HEAD_RETURN)
+        if rig.name == "driver_rig":
+            back = car.matrix_world.to_3x3() @ (-WHEEL_NORMAL * 0.06)
+            for side, angle, pole in (("L", 60, (0.6, 0.3, -1.0)), ("R", -60, (-0.6, 0.3, -1.0))):
+                grip = car.matrix_world @ wheel_point(angle)
+                reach(rig, side, grip + back, grip, pole)
+
+
 frame_paths = []
 for pitch in PITCHES:
     for yaw in YAWS:
@@ -96,6 +137,8 @@ for pitch in PITCHES:
         # nose-up is a negative turn about X.
         yaw_root.rotation_euler = (0.0, 0.0, math.radians(-yaw))
         pitch_root.rotation_euler = (math.radians(-pitch), 0.0, 0.0)
+        bpy.context.view_layer.update()
+        pose_occupants(yaw, pitch)
         path = os.path.join(out_dir, "frames", f"p{pitch:+d}_y{yaw:+d}.png")
         scene.render.filepath = path
         bpy.ops.render.render(write_still=True)
@@ -105,11 +148,17 @@ for pitch in PITCHES:
 rows = math.ceil(len(frame_paths) / COLUMNS)
 sheet_w, sheet_h = COLUMNS * FRAME_W, rows * FRAME_H
 sheet = np.zeros((sheet_h, sheet_w, 4), np.float32)
+clipped = []
 for i, path in enumerate(frame_paths):
     img = bpy.data.images.load(path)
     px = np.empty(FRAME_W * FRAME_H * 4, np.float32)
     img.pixels.foreach_get(px)
     bpy.data.images.remove(img)
+    alpha = px.reshape(FRAME_H, FRAME_W, 4)[:, :, 3]
+    edges = {"bottom": alpha[0], "top": alpha[-1], "left": alpha[:, 0], "right": alpha[:, -1]}
+    touching = [name for name, edge in edges.items() if edge.max() > 0.02]
+    if touching:
+        clipped.append(f"{os.path.basename(path)}: {', '.join(touching)}")
     col, row = i % COLUMNS, i // COLUMNS
     y0 = sheet_h - (row + 1) * FRAME_H          # image rows are stored bottom-up
     sheet[y0:y0 + FRAME_H, col * FRAME_W:(col + 1) * FRAME_W] = px.reshape(FRAME_H, FRAME_W, 4)
@@ -135,3 +184,4 @@ meta = {
 with open(os.path.join(out_dir, "sheet.json"), "w", encoding="utf-8") as f:
     json.dump(meta, f, indent=2)
 print("saved sheet", sheet_w, "x", sheet_h)
+print("frames cut off at the edge:", clipped if clipped else "none")
