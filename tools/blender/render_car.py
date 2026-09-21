@@ -38,7 +38,8 @@ COLUMNS = 5
 
 bpy.ops.wm.open_mainfile(filepath=in_blend)
 scene = bpy.context.scene
-car = bpy.data.objects["car"]
+# The car and everything riding in it (seated characters and their rigs) turn together.
+riders = [o for o in scene.objects if o.parent is None and o.type in ("MESH", "ARMATURE")]
 
 scene.render.engine = "BLENDER_EEVEE"
 scene.render.resolution_x = FRAME_W
@@ -71,7 +72,8 @@ yaw_root = bpy.data.objects.new("yaw_root", None)
 scene.collection.objects.link(pitch_root)
 scene.collection.objects.link(yaw_root)
 yaw_root.parent = pitch_root
-car.parent = yaw_root
+for obj in riders:
+    obj.parent = yaw_root
 
 focal_px = (REFERENCE_SCREEN_HEIGHT / 2) / math.tan(math.radians(VFOV_DEG) / 2)
 cam_data = bpy.data.cameras.new("cam")
