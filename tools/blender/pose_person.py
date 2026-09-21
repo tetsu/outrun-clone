@@ -32,6 +32,44 @@ POSES = {
         ("forearm.L", "z", -30), ("forearm.R", "z", 30),
     ],
 }
+# Driving: the seated body and legs; the arms are placed on the wheel by reach() once the
+# character sits in the car.
+POSES["driving"] = [step for step in POSES["seated"] if not step[0].startswith(("upper_arm", "forearm"))]
+
+
+def aim(rig, name, target):
+    """Turn a pose bone about its head so that it points at target (armature space)."""
+    pb = rig.pose.bones[name]
+    head = pb.head.copy()
+    q = (pb.tail - head).rotation_difference(target - head)
+    pb.matrix = Matrix.Translation(head) @ q.to_matrix().to_4x4() @ Matrix.Translation(-head) @ pb.matrix
+    bpy.context.view_layer.update()
+
+
+def reach(rig, side, wrist_world, grip_world, pole):
+    """Two-bone IK: bend upper arm and forearm so the wrist lands on wrist_world, elbow towards
+    the pole direction, then point the hand at grip_world. Positions are in world space."""
+    to_rig = rig.matrix_world.inverted()
+    wrist = to_rig @ Vector(wrist_world)
+    grip = to_rig @ Vector(grip_world)
+    upper = rig.pose.bones[f"upper_arm.{side}"]
+    fore = rig.pose.bones[f"forearm.{side}"]
+    l1, l2 = upper.length, fore.length
+    s = upper.head.copy()
+    d = (wrist - s).length
+    if d > l1 + l2 - 1e-3:
+        wrist = s + (wrist - s).normalized() * (l1 + l2 - 1e-3)
+        d = l1 + l2 - 1e-3
+    u = (wrist - s).normalized()
+    a = (l1 * l1 - l2 * l2 + d * d) / (2 * d)
+    h = math.sqrt(max(l1 * l1 - a * a, 0.0))
+    p = Vector(pole)
+    v = (p - p.dot(u) * u).normalized()
+    elbow = s + u * a + v * h
+    aim(rig, f"upper_arm.{side}", elbow)
+    aim(rig, f"forearm.{side}", wrist)
+    aim(rig, f"hand.{side}", grip)
+    return (rig.matrix_world @ rig.pose.bones[f"forearm.{side}"].tail - Vector(wrist_world)).length
 
 
 def apply_pose(rig, steps):

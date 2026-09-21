@@ -4,7 +4,8 @@ Steps: join the meshes, scale to the given height with the feet on z = 0 and the
 reduce the polygon count (sprites never need millions of faces), build a humanoid armature whose
 joints are measured from the mesh, and bind the mesh with Blender's automatic weights.
 
-The joint measurements assume a symmetric T-pose with the arms level and straight out along X.
+The joint measurements assume a symmetric pose with straight arms, level (T-pose) or sloping
+down (A-pose).
 
 Usage:
   blender --background --factory-startup --python tools/blender/rig_person.py -- <in.glb> <out.blend> [height_m]
@@ -73,17 +74,28 @@ def centre_y(zc, half_x=0.08, band=0.03):
     return float(np.median(y[sel])) if sel.sum() > 20 else 0.0
 
 
-# Arms: the level horizontal band far from the body.
+# Arms: straight, either level (T-pose) or sloping down (A-pose). The outer part of the +X arm
+# (forearm and hand) fixes the arm's line; the -X arm is its mirror image.
 span = float(np.abs(x).max())
-arm_sel = (np.abs(x) > span * 0.45) & (np.abs(x) < span * 0.75)
-arm_z = float(np.median(z[arm_sel]))
-arm_y = float(np.median(y[arm_sel]))
-# Joint positions along the arm as fractions of shoulder-to-fingertip. Measuring the shoulder from
-# the mesh is unreliable (hair and bags hang beside it), so it comes from the height.
+outer = co[x > span * 0.45]
+centre = outer.mean(axis=0)
+arm_dir = np.linalg.svd(outer - centre, full_matrices=False)[2][0]
+arm_dir = arm_dir if arm_dir[0] > 0 else -arm_dir
+# Measuring the shoulder from the mesh is unreliable (hair and bags hang beside it), so it comes
+# from the height: the point on the arm's line at this distance from the centre.
 shoulder_x = H * 0.105
-reach = span - shoulder_x
-elbow_x = shoulder_x + reach * 0.46
-wrist_x = elbow_x + reach * 0.37
+shoulder = centre + arm_dir * (shoulder_x - centre[0]) / arm_dir[0]
+arm_len = float(((outer - shoulder) @ arm_dir).max())   # shoulder to fingertip
+elbow_t = arm_len * 0.46
+wrist_t = elbow_t + arm_len * 0.37
+arm_y, arm_z = float(shoulder[1]), float(shoulder[2])
+slope = float(np.degrees(np.arcsin(-arm_dir[2])))
+
+
+def arm_point(s, t):
+    """Point t metres along the arm from the shoulder, on side s (+1 or -1)."""
+    p = shoulder + arm_dir * t
+    return (s * p[0], p[1], p[2])
 
 # Legs: centre of each leg in a band around the shin.
 leg_band = (z > H * 0.2) & (z < H * 0.35)
@@ -96,8 +108,8 @@ knee_z = H * 0.285
 ankle_z = H * 0.045
 neck_z = arm_z + H * 0.02
 head_z = neck_z + H * 0.035
-print(f"span={span:.3f} arm_z={arm_z:.3f} shoulder_x={shoulder_x:.3f} elbow_x={elbow_x:.3f} "
-      f"wrist_x={wrist_x:.3f} leg_x={leg_x:.3f} toe_y={toe_y:.3f}")
+print(f"span={span:.3f} shoulder=({shoulder_x:.3f}, {arm_y:.3f}, {arm_z:.3f}) arm slope={slope:.1f} deg "
+      f"arm_len={arm_len:.3f} leg_x={leg_x:.3f} toe_y={toe_y:.3f}")
 
 # ---------------------------------------------------------------- armature
 arm_data = bpy.data.armatures.new("rig")
@@ -127,10 +139,10 @@ bone("neck", (0, centre_y(neck_z), neck_z), (0, centre_y(head_z, 0.05), head_z),
 bone("head", (0, centre_y(head_z, 0.05), head_z), (0, centre_y(head_z, 0.05), H), "neck", True)
 
 for side, s in (("L", 1), ("R", -1)):
-    bone(f"shoulder.{side}", (s * 0.03, arm_y, neck_z - 0.02), (s * shoulder_x, arm_y, arm_z), "upper_chest")
-    bone(f"upper_arm.{side}", (s * shoulder_x, arm_y, arm_z), (s * elbow_x, arm_y, arm_z), f"shoulder.{side}", True)
-    bone(f"forearm.{side}", (s * elbow_x, arm_y, arm_z), (s * wrist_x, arm_y, arm_z), f"upper_arm.{side}", True)
-    bone(f"hand.{side}", (s * wrist_x, arm_y, arm_z), (s * span, arm_y, arm_z), f"forearm.{side}", True)
+    bone(f"shoulder.{side}", (s * 0.03, arm_y, neck_z - 0.02), arm_point(s, 0), "upper_chest")
+    bone(f"upper_arm.{side}", arm_point(s, 0), arm_point(s, elbow_t), f"shoulder.{side}", True)
+    bone(f"forearm.{side}", arm_point(s, elbow_t), arm_point(s, wrist_t), f"upper_arm.{side}", True)
+    bone(f"hand.{side}", arm_point(s, wrist_t), arm_point(s, arm_len), f"forearm.{side}", True)
     bone(f"thigh.{side}", (s * leg_x, centre_y(hip_z, 0.2), hip_z - 0.06), (s * leg_x, centre_y(knee_z, 0.2), knee_z), "hips")
     bone(f"shin.{side}", (s * leg_x, centre_y(knee_z, 0.2), knee_z), (s * leg_x, centre_y(ankle_z, 0.2) + 0.02, ankle_z), f"thigh.{side}", True)
     bone(f"foot.{side}", (s * leg_x, centre_y(ankle_z, 0.2) + 0.02, ankle_z), (s * leg_x, toe_y + 0.03, 0.02), f"shin.{side}", True)
@@ -170,13 +182,18 @@ for side, s in (("L", 1), ("R", -1)):
     on_side = (x * s) > 0
     ax = np.abs(x)
     # arms: close to the level arm axis, outside the shoulder
-    radial = np.sqrt((y - arm_y) ** 2 + (z - arm_z) ** 2)
-    in_arm = on_side & (ax > shoulder_x - 0.06) & (radial < 0.1)
-    arm_mix = np.where(in_arm, np.clip((ax - (shoulder_x - 0.06)) / 0.08, 0, 1), 0)
-    arm = chain(ax, [f"shoulder.{side}", f"upper_arm.{side}", f"forearm.{side}", f"hand.{side}"],
-                [shoulder_x, elbow_x, wrist_x], 0.035)
+    # position along the arm's line (t) and distance from it, with this side mirrored onto +X
+    rel = np.stack([ax, y, z], axis=1) - shoulder
+    t = rel @ arm_dir
+    radial = np.linalg.norm(rel - t[:, None] * arm_dir, axis=1)
+    # spread fingers and the thumb reach further from the arm's line than the arm itself
+    in_arm = on_side & (t > -0.06) & (radial < np.where(t > wrist_t - 0.04, 0.16, 0.1))
+    arm_mix = np.where(in_arm, np.clip((t + 0.06) / 0.08, 0, 1), 0)
+    arm = chain(t, [f"shoulder.{side}", f"upper_arm.{side}", f"forearm.{side}", f"hand.{side}"],
+                [0.0, elbow_t, wrist_t], 0.035)
     # legs: below the hips, blending in over the top of the thigh
-    leg_mix = np.where(on_side, np.clip((hip_z - 0.02 - z) / 0.1, 0, 1), 0)
+    # In an A-pose the hands hang below the hips; anything that belongs to the arm stays out of the leg.
+    leg_mix = np.where(on_side, np.clip((hip_z - 0.02 - z) / 0.1, 0, 1), 0) * (1 - arm_mix)
     leg = chain(-z, [f"thigh.{side}", f"shin.{side}", f"foot.{side}"], [-knee_z, -ankle_z], 0.04)
     for name, w in arm.items():
         weights[name] += arm_mix * w
