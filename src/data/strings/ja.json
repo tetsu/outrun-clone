@@ -1,0 +1,14 @@
+{
+  "hud.time": "TIME",
+  "hud.speed": "SPEED",
+  "hud.gear": "GEAR",
+  "hud.gear.low": "LO",
+  "hud.gear.high": "HI",
+  "options.title": "オプション",
+  "options.language": "言語",
+  "options.language.auto": "自動",
+  "options.fps": "フレームレート",
+  "options.fps.display": "モニターに合わせる",
+  "options.resolution": "解像度",
+  "options.help": "ハンドル: ← → または A D   アクセル: ↑ または W   ブレーキ: ↓ または S\nギア: スペース   オプション: Esc   ゲームパッドにも対応しています。"
+}

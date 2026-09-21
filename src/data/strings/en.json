@@ -1,0 +1,14 @@
+{
+  "hud.time": "TIME",
+  "hud.speed": "SPEED",
+  "hud.gear": "GEAR",
+  "hud.gear.low": "LO",
+  "hud.gear.high": "HI",
+  "options.title": "Options",
+  "options.language": "Language",
+  "options.language.auto": "Auto",
+  "options.fps": "Frame rate",
+  "options.fps.display": "Match display",
+  "options.resolution": "Resolution",
+  "options.help": "Steer: ← → or A D   Accelerate: ↑ or W   Brake: ↓ or S\nGear: Space   Options: Esc   Gamepads are supported."
+}

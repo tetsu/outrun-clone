@@ -1,0 +1,111 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: "Segoe UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+/* The HUD anchors to the screen edges so it lays out on 16:9, 16:10 and ultrawide alike.
+   Sizes are in vh so text scales with the screen height, like the rest of the picture. */
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-weight: 800;
+  font-style: italic;
+  text-shadow: 0 0.25vh 0 rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.04em;
+}
+
+.hud-item {
+  position: absolute;
+  line-height: 1;
+}
+.hud-label {
+  font-size: 2.2vh;
+  color: #ffd84a;
+  margin-right: 0.6em;
+}
+.hud-value {
+  font-size: 5.5vh;
+  font-variant-numeric: tabular-nums;
+}
+.hud-unit {
+  font-size: 2.2vh;
+  margin-left: 0.4em;
+}
+#hud-time {
+  top: 3vh;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+#hud-speed {
+  bottom: 4vh;
+  left: 4vh;
+}
+#hud-gear {
+  bottom: 4vh;
+  right: 4vh;
+}
+#hud-fps {
+  top: 1.5vh;
+  right: 2vh;
+  font-size: 1.6vh;
+  font-style: normal;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 8, 24, 0.6);
+  backdrop-filter: blur(4px);
+}
+#overlay.open {
+  display: flex;
+}
+.panel {
+  min-width: min(28rem, 90vw);
+  padding: 1.5rem 2rem;
+  border-radius: 0.75rem;
+  background: rgba(10, 18, 40, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.panel h1 {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  font-style: italic;
+}
+.panel label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.6rem 0;
+}
+.panel select {
+  font: inherit;
+  padding: 0.25rem 0.5rem;
+}
+.panel p {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+  white-space: pre-line;
+}

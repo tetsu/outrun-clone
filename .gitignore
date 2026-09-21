@@ -1,0 +1,11 @@
+node_modules/
+dist/
+
+# Source 3D models are large and may be test stand-ins; keep them out of git until they are final.
+art/models/**/*.glb
+art/models/**/*.blend
+art/models/**/*.blend1
+
+# Sprites rendered from stand-in models. Served by the dev server only (see vite.config.ts),
+# never part of a build. The game falls back to drawn placeholders without them.
+local-assets/

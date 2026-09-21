@@ -1,0 +1,31 @@
+{
+  "name": "Test course",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "sections": [
+    { "length": 600 },
+    { "length": 450, "curve": 0.0016 },
+    { "length": 300, "hill": 14 },
+    { "length": 540, "curve": -0.0024, "hill": -14 },
+    { "length": 360 },
+    { "length": 300, "hill": 22 },
+    { "length": 240, "hill": -22 },
+    { "length": 600, "curve": 0.003, "hill": 8 },
+    { "length": 300, "curve": -0.0018 },
+    { "length": 480, "curve": 0.0012, "hill": -18 },
+    { "length": 240, "hill": 10 },
+    { "length": 660, "curve": -0.0032 },
+    { "length": 420, "hill": 26 },
+    { "length": 420, "curve": 0.002, "hill": -26 },
+    { "length": 600 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 1400, "every": 45, "offset": 13, "side": "both" },
+    { "kind": "palm", "from": 1400, "to": 3200, "every": 36, "offset": 11.5, "side": "both" },
+    { "kind": "pine", "from": 3200, "to": 4600, "every": 27, "offset": 14, "side": "left" },
+    { "kind": "sign", "from": 3300, "to": 4600, "every": 180, "offset": 10, "side": "right" },
+    { "kind": "palm", "from": 4600, "to": 100000, "every": 42, "offset": 12, "side": "both" },
+    { "kind": "pine", "from": 4700, "to": 100000, "every": 63, "offset": 20, "side": "both" }
+  ]
+}
