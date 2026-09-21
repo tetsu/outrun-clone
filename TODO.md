@@ -20,7 +20,7 @@ Long-lead work for the owner, to start in parallel because everything car-relate
 
 ## Quality targets — getting close to the original
 
-The original's quality comes less from detail in the art than from three things: how fast it feels, how good the car is to drive, and how well colour and sound hold together. The areas below are in order of how far the current build is from the original. Tasks that already exist elsewhere in this file are pointed to, not repeated.
+The original's quality comes less from detail in the art than from three things: how fast it feels, how good the car is to drive, and how well the graphics and sound hold together. The areas below are in order of how far the current build is from the original. Tasks that already exist elsewhere in this file are pointed to, not repeated.
 
 **Approach: finish one stage before widening.** Bring stage 1 (Chōshi) to final quality — look, colour, sense of speed, sound — before building out the other 14. That stage sets the bar, and the rest becomes applying it. Widening at low quality means redoing everything later.
 
@@ -43,17 +43,43 @@ The speed figure is already 293 km/h; what is missing is how the screen sells it
 - [ ] **Measurement sheet from a recording of the original** (legitimate copy): seconds to top speed, sideways shift of the road in the tightest bend, time per stage, roadside objects passed per second. These become the target numbers. Measuring feel copies no data.
 - [ ] Replay-driven comparison: the simulation is deterministic, so the same recorded input can be re-run after every tuning change (replay tests, M10 — pull the recorder forward for this).
 
-### 3. Colour and a single look
+### 3. Graphics
+
+All graphics polish is gathered here. Items marked with a milestone are tracked there in detail; the rest are new.
+
+One look:
 
 - [ ] Few colours, high saturation: sky gradient, road, ground and roadside objects designed as one palette per stage. Today the realistically shaded car and the code-drawn trees look like two different games.
 - [ ] Style guide first (M4), then the toon shader and outlines on the car ("Car") — that step alone closes much of the gap.
 - [ ] Palette change while driving from one stage into the next (M6): sky and ground colours blending smoothly is one of the original's signatures.
+- [ ] Haze colour per stage and time of day (morning mist, sunset glow). There is one haze colour today, in `src/render/palette.ts`.
+- [ ] How the car is lit per time of day ("Car").
+
+Road, ground and sky:
+
+- [ ] Road drawn from a painted road texture (M2).
+- [ ] Per-stage background panoramas replacing the shader-drawn hills (M2).
+- [ ] **Sea and water.** The coastal route has the sea in view almost all the way. The ground is a flat colour today; it needs the sea to one side with a shoreline, sand, and the water of rice paddies, each told apart — a per-side ground type in the stage data and the road shader.
+- [ ] **Clouds** in the sky layer, scrolling with curves. They also help the sense of speed, because they make the background visibly move in a bend.
+
+Objects:
+
+- [ ] Mipmapped high-resolution scenery sprites and soft shadows under them (M4).
+- [ ] **Objects that span the road.** The Katsuura tunnels, shrine gates, the bay-crossing bridge, the Chiba monorail overhead, airliners low over Narita. The sprite system only places objects standing beside the road; things over it need their own kind: a gate sprite centred on the road and scaled to its width, and a tunnel drawn as walls and a roof from the scanline table, with the light changing inside.
+- [ ] **Dusk and night.** City and industrial lights, headlights on the road, tail lights on traffic, and a glow around bright lights (an additive sprite pass; a bloom pass only if that is not enough). All five goal stages run from sunset into night.
+- [ ] **Sprite edge quality at 4K on a real display:** shimmer on distant objects, soft fringes on enlarged ones. Check premultiplied-alpha edges and the mipmap bias.
+
+Screen:
+
+- [ ] Transitions: fades at the start, the goal and game over, and between the title, music select and the drive.
 
 ### 4. Small motions
 
 At high resolution a flat sprite reads as a cardboard cut-out unless it moves.
 
-- [ ] Spinning wheels (wheel frames or a blurred wheel layer in the car sprite).
+- [ ] **Steering wheel and arms, baked into the yaw frames (first; no extra frames).** Each of the 13 yaw frames gets the wheel turned in proportion to the yaw, up to about ±70° (more would need hand-over-hand), and the hands follow it: `reach()` in `render_car.py` already puts them on the rim, so the grip points only shift by the wheel's turn. The arms and shoulders are what shows from behind. The stand-in car is one mesh, so the steering wheel is first cut out as its own object (its centre and radius are already measured in `seat_person.py`).
+- [ ] **Front wheels turned, baked into the yaw frames (second; no extra frames).** Hidden from straight behind, but the outer front wheel shows past the body in the angled frames. Cut the front wheels out of the single mesh by the wheel-arch positions.
+- [ ] **Spinning wheels (third; with the original car).** Not as extra sheet frames — every spin phase would multiply the 140 MB sheet. A small wheel-only layer drawn over the car, 2–3 phases (wheels blur at speed), rendered with the body as a holdout so it is hidden correctly. From straight behind only the tread shows, so it matters most at the start, at low speed and in angled frames. Ask for the wheels as separate parts when the original car is modelled.
 - [ ] Brake lights when braking.
 - [ ] Tyre smoke and roadside dust (M3).
 - [ ] Hair in the wind and occupants' gestures ("Car and characters").
@@ -113,7 +139,16 @@ Half of the original's impression is its music.
 ### M5 — Traffic and collisions
 
 - [ ] Lane-keeping traffic cars and trucks with varied speeds, spawned from the seeded generator.
-- [ ] Traffic vehicle models scripted in Blender, rendered at 3–5 angles (`plan.md` → Art).
+- [ ] Traffic vehicle models, rendered at 3–5 angles (`plan.md` → Art). Scripted in Blender or generated; either way original designs, not real production cars. Models go in `art/models/traffic/<name>/<name>.glb` (local only, like the other models).
+- [x] Traffic sprite render: `tools/blender/render_traffic.py` (11 yaw angles, ±40°, camera 10 m behind; no occupants). `prep_car.py` is used as it is, with the length per vehicle. The camera, frame fitting and sheet packing are shared with the player car in `sprite_common.py`. Output goes to `local-assets/traffic/<name>/`.
+- [ ] Stand-in traffic models are in (`deco-truck` 6.0 m, `kei-truck` 3.4 m, `supercar` 4.5 m, `yankee` 4.4 m, `bus` 7.3 m — the lengths given to `prep_car.py`). Before any of them ships:
+  - [ ] `supercar` reproduces a real Italian mid-engine sports car (body, lights and wheels). Stand-in only; replace with an original design.
+  - [ ] `kei-truck` has the front face of a real kei truck. Seen from behind it is generic; change the front or replace it.
+  - [x] `deco-truck`: the blank rear doors are dressed by `tools/blender/fix_deco_truck.py` — a door painting drawn in the script (sunrise over the sea with a lighthouse), lock rods, three round tail lamps per side and a plate. Render from `deco-truck.fixed.blend`.
+  - [ ] `yankee` and `bus`: check the lettering and plates; no real company names.
+- [ ] Traffic renders are overexposed on white and chrome bodies (the kei truck loses its shading). Lower the light for traffic or fix it with the toon shader.
+- [ ] Each generated model is 1.8–1.9 million faces and a 60–80 MB file. Decimate in `prep_car.py` (the characters are already cut to 250k faces).
+- [ ] Traffic sheets are 5–8 thousand pixels wide each (the bus and the truck use two rows). They count towards the texture budget (M4) and the 4096-pixel limit.
 - [ ] Collision boxes for traffic and roadside objects.
 - [ ] Light bump: nudge and slowdown.
 - [ ] Hard hit and scenery hit: spin or flip crash, reset to the road centre.
