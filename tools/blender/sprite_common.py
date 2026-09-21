@@ -9,26 +9,47 @@ import os
 
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 # Must match src/game/camera.ts.
-CAMERA_HEIGHT = 1.6       # metres above the road
+CAMERA_HEIGHT = 2.0       # metres above the road
 VFOV_DEG = 60.0
 REFERENCE_SCREEN_HEIGHT = 1440   # a frame is 1:1 on a screen this many pixels tall
 
 MAX_SHEET_WIDTH = 8192    # widest texture every desktop GPU accepts
 FRAME_MARGIN = 12         # pixels kept clear around the vehicle in every frame
 
-FOCAL_PX = (REFERENCE_SCREEN_HEIGHT / 2) / math.tan(math.radians(VFOV_DEG) / 2)
 
 
-def fit_frame(scene, attitudes, distance):
-    """Project every mesh in the scene for each (yaw, pitch) with the game camera `distance`
-    metres behind the origin, and return the frame (width, height, top edge below the principal
-    point) that holds all of them."""
+def focal_px(reference_height=REFERENCE_SCREEN_HEIGHT):
+    """The camera's focal length in pixels for frames drawn 1:1 on a screen `reference_height`
+    pixels tall. A smaller reference height gives proportionally smaller frames (less texture
+    memory); the game scales them up by the same ratio."""
+    return (reference_height / 2) / math.tan(math.radians(VFOV_DEG) / 2)
+
+
+FOCAL_PX = focal_px()
+
+# The surroundings glossy paint reflects, from straight down (0) to straight up (1): dark road,
+# a bright horizon, then blue sky deepening overhead. The sharp horizon is what makes paint read
+# as glossy: it draws a clean line along every curve of the body.
+SKY = [
+    (0.0, (0.02, 0.02, 0.022)),
+    (0.495, (0.06, 0.06, 0.06)),
+    (0.5, (1.6, 1.55, 1.45)),
+    (0.53, (0.9, 0.95, 1.05)),
+    (0.7, (0.35, 0.5, 0.9)),
+    (1.0, (0.12, 0.22, 0.6)),
+]
+SKY_STRENGTH = 1.1
+
+
+def mesh_points(scene, objects=None):
+    """World positions of a sample of the vertices of `objects` (default: every mesh in the scene),
+    as deformed by their modifiers (so posed characters count as posed)."""
     depsgraph = bpy.context.evaluated_depsgraph_get()
     points = []
-    for obj in scene.objects:
+    for obj in scene.objects if objects is None else objects:
         if obj.type != "MESH":
             continue
         mesh = obj.evaluated_get(depsgraph).to_mesh()
@@ -38,19 +59,44 @@ def fit_frame(scene, attitudes, distance):
         co = co.reshape(-1, 3)[::7]
         m = np.array(obj.matrix_world)
         points.append(co @ m[:3, :3].T + m[:3, 3])
-    points = np.concatenate(points)
+    return np.concatenate(points)
+
+
+def project_extent(points, attitudes, distance, reference_height=REFERENCE_SCREEN_HEIGHT, roll_pivot_height=0.0):
+    """Project `points` for each attitude with the game camera `distance` metres behind the
+    origin. Returns (half width, top, bottom) in pixels, top and bottom measured downwards from
+    the principal point.
+
+    An attitude is (yaw, pitch) or (yaw, pitch, roll), in degrees, with the turns nested as
+    add_turntable and add_roll build them: pitch wraps yaw, which wraps a roll about the
+    vehicle's own long axis through a pivot `roll_pivot_height` metres above the origin."""
+    focal = focal_px(reference_height)
+    pivot = np.array([0.0, 0.0, roll_pivot_height])
     half_w, top, bottom = 0.0, 1e9, -1e9
-    for yaw, pitch in attitudes:
+    for attitude in attitudes:
+        yaw, pitch = attitude[:2]
+        roll = attitude[2] if len(attitude) > 2 else 0
+        q = points
+        if roll:
+            c = math.radians(-roll)     # as set_roll: the top goes to the right of the screen
+            ry = np.array([[math.cos(c), 0, math.sin(c)], [0, 1, 0], [-math.sin(c), 0, math.cos(c)]])
+            q = (points - pivot) @ ry.T + pivot
         a, b = math.radians(-pitch), math.radians(-yaw)
         rx = np.array([[1, 0, 0], [0, math.cos(a), -math.sin(a)], [0, math.sin(a), math.cos(a)]])
         rz = np.array([[math.cos(b), -math.sin(b), 0], [math.sin(b), math.cos(b), 0], [0, 0, 1]])
-        p = points @ (rx @ rz).T
+        p = q @ (rx @ rz).T
         depth = distance - p[:, 1]
-        sx = FOCAL_PX * p[:, 0] / depth
-        sy = FOCAL_PX * (CAMERA_HEIGHT - p[:, 2]) / depth    # pixels below the principal point
+        sx = focal * p[:, 0] / depth
+        sy = focal * (CAMERA_HEIGHT - p[:, 2]) / depth    # pixels below the principal point
         half_w = max(half_w, float(np.abs(sx).max()))
         top, bottom = min(top, float(sy.min())), max(bottom, float(sy.max()))
+    return half_w, top, bottom
 
+
+def frame_from_extent(half_w, top, bottom):
+    """The frame (width, height, top edge below the principal point) around a projected extent,
+    with FRAME_MARGIN to spare and sizes rounded up to multiples of 16. The principal point is
+    centred horizontally."""
     def up16(v):
         return int(math.ceil(v / 16) * 16)
 
@@ -60,8 +106,23 @@ def fit_frame(scene, attitudes, distance):
     return frame_w, frame_h, frame_top
 
 
-def setup_scene(scene, frame_w, frame_h, frame_top, distance):
-    """Render settings, sky light, sun and the game camera cropped to the frame."""
+def union_extent(*extents):
+    """The extent that holds all the given (half width, top, bottom) extents."""
+    return (max(e[0] for e in extents), min(e[1] for e in extents), max(e[2] for e in extents))
+
+
+def fit_frame(scene, attitudes, distance, reference_height=REFERENCE_SCREEN_HEIGHT, objects=None,
+              roll_pivot_height=0.0):
+    """Project the meshes (`objects`, default every mesh in the scene) for each attitude (see
+    project_extent) with the game camera `distance` metres behind the origin, and return the
+    frame (width, height, top edge below the principal point) that holds all of them."""
+    points = mesh_points(scene, objects)
+    return frame_from_extent(*project_extent(points, attitudes, distance, reference_height, roll_pivot_height))
+
+
+def setup_scene(scene, frame_w, frame_h, frame_top, distance, reference_height=REFERENCE_SCREEN_HEIGHT):
+    """Render settings, sky light, sun and the game camera cropped to the frame. Frames are 1:1 on
+    a screen `reference_height` pixels tall (use the same value as for fit_frame)."""
     scene.render.engine = "BLENDER_EEVEE"
     scene.render.resolution_x = frame_w
     scene.render.resolution_y = frame_h
@@ -71,13 +132,7 @@ def setup_scene(scene, frame_w, frame_h, frame_top, distance):
     scene.render.image_settings.color_mode = "RGBA"
     scene.view_settings.view_transform = "Standard"
 
-    world = bpy.data.worlds.new("sprite_world")
-    if world.node_tree is None:
-        world.use_nodes = True
-    bg = world.node_tree.nodes["Background"]
-    bg.inputs[0].default_value = (0.62, 0.74, 0.95, 1)
-    bg.inputs[1].default_value = 1.1
-    scene.world = world
+    scene.world = sky_world()
 
     sun_data = bpy.data.lights.new("sun", "SUN")
     sun_data.energy = 3.2
@@ -93,7 +148,7 @@ def setup_scene(scene, frame_w, frame_h, frame_top, distance):
     cam_data.sensor_fit = "HORIZONTAL" if horizontal else "VERTICAL"
     cam_data.sensor_width = cam_data.sensor_height = 36.0
     larger = frame_w if horizontal else frame_h
-    cam_data.lens = FOCAL_PX * 36.0 / larger
+    cam_data.lens = focal_px(reference_height) * 36.0 / larger
     cam_data.shift_x = 0.0
     cam_data.shift_y = -(frame_top + frame_h / 2) / larger
     cam_data.clip_start = 0.1
@@ -102,6 +157,61 @@ def setup_scene(scene, frame_w, frame_h, frame_top, distance):
     cam.rotation_euler = (math.radians(90), 0.0, math.radians(180))   # level, looking along -Y
     scene.collection.objects.link(cam)
     scene.camera = cam
+
+
+def sky_world():
+    """A world lit and reflected by SKY, by the height of the view direction."""
+    world = bpy.data.worlds.new("sprite_world")
+    if world.node_tree is None:
+        world.use_nodes = True
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    coords = nodes.new("ShaderNodeTexCoord")
+    xyz = nodes.new("ShaderNodeSeparateXYZ")
+    height = nodes.new("ShaderNodeMapRange")          # z of the direction, -1..1 -> 0..1
+    height.inputs["From Min"].default_value = -1.0
+    ramp = nodes.new("ShaderNodeValToRGB")
+    stops = ramp.color_ramp.elements
+    stops[0].position, stops[0].color = SKY[0][0], (*SKY[0][1], 1)
+    stops[1].position, stops[1].color = SKY[-1][0], (*SKY[-1][1], 1)
+    for position, color in SKY[1:-1]:
+        stops.new(position).color = (*color, 1)
+    background = nodes["Background"]
+    background.inputs["Strength"].default_value = SKY_STRENGTH
+    links.new(coords.outputs["Generated"], xyz.inputs[0])
+    links.new(xyz.outputs["Z"], height.inputs[0])
+    links.new(height.outputs[0], ramp.inputs[0])
+    links.new(ramp.outputs[0], background.inputs["Color"])
+    return world
+
+
+def clear_coat(material, saturation=(0.35, 0.6), coat_roughness=0.03, paint_roughness=0.25):
+    """Give the painted parts of a baked-texture material a glossy clear coat.
+
+    Paint is told apart from trim, tyres, glass and lights by the saturation of its base colour,
+    which fades the coat in between the two `saturation` values. Under the coat the paint gets
+    smoother and loses any metallic value, which scanned textures often get wrong."""
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    bsdf = next(nd for nd in nodes if nd.type == "BSDF_PRINCIPLED")
+    base = bsdf.inputs["Base Color"].links[0].from_socket
+    hsv = nodes.new("ShaderNodeSeparateColor")
+    hsv.mode = "HSV"
+    paint = nodes.new("ShaderNodeMapRange")
+    paint.inputs["From Min"].default_value, paint.inputs["From Max"].default_value = saturation
+    links.new(base, hsv.inputs[0])
+    links.new(hsv.outputs[1], paint.inputs[0])    # the second channel is saturation in HSV mode
+    links.new(paint.outputs[0], bsdf.inputs["Coat Weight"])
+    bsdf.inputs["Coat Roughness"].default_value = coat_roughness
+    for name, painted in (("Roughness", paint_roughness), ("Metallic", 0.0)):
+        mix = nodes.new("ShaderNodeMix")
+        mix.data_type = "FLOAT"
+        socket = bsdf.inputs[name]
+        if socket.is_linked:
+            links.new(socket.links[0].from_socket, mix.inputs["A"])
+        else:
+            mix.inputs["A"].default_value = socket.default_value
+        mix.inputs["B"].default_value = painted
+        links.new(paint.outputs[0], mix.inputs["Factor"])
+        links.new(mix.outputs["Result"], socket)
 
 
 def add_turntable(scene, riders):
@@ -122,6 +232,28 @@ def set_attitude(pitch_root, yaw_root, yaw, pitch):
     nose-up is a negative turn about X."""
     yaw_root.rotation_euler = (0.0, 0.0, math.radians(-yaw))
     pitch_root.rotation_euler = (math.radians(-pitch), 0.0, 0.0)
+    bpy.context.view_layer.update()
+
+
+def add_roll(scene, yaw_root, riders, pivot_height):
+    """Put a roll pivot inside `yaw_root`, on the vehicle's long axis `pivot_height` metres above
+    the road, and move `riders` onto it without moving them."""
+    roll_root = bpy.data.objects.new("roll_root", None)
+    scene.collection.objects.link(roll_root)
+    roll_root.parent = yaw_root
+    roll_root.location = (0.0, 0.0, pivot_height)
+    for obj in riders:
+        obj.parent = roll_root
+        # the parent's offset is undone, so the rider stays where it was modelled
+        obj.matrix_parent_inverse = Matrix.Translation((0.0, 0.0, -pivot_height))
+    bpy.context.view_layer.update()
+    return roll_root
+
+
+def set_roll(roll_root, roll):
+    """The vehicle faces -Y, so its long axis is Y: a positive roll takes the top to the right of
+    the screen (-X, clockwise as seen by the camera behind), a negative turn about Y."""
+    roll_root.rotation_euler = (0.0, math.radians(-roll), 0.0)
     bpy.context.view_layer.update()
 
 

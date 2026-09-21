@@ -36,6 +36,7 @@ export function placeCamera(track: Track, carZ: number, carX: number, width: num
     horizon: height / 2 + focal * pitch + shake * height,
     curveModel: view.curveModel,
     curveGain: view.curveGain,
+    curveLookahead: view.curveLookahead,
     eyeHeight: view.height,
   };
 }

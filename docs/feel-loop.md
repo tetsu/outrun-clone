@@ -50,7 +50,16 @@ View: arcade curve model, pitch follow 0.5. Handling: LO pull 9.5, HI pull 3.0 r
 
 - **Bends** (`bend-*.jpg`): the projected model keeps the road straight near the car and bends it sharply only near the horizon; the arcade model sweeps the whole road from just in front of the car. Gain 1000 was gentle, 1600 closest to the sweeping look; **1400** chosen (sweep 0.11 screens a quarter of the way up, 0.43 near the horizon).
 - **Hills** (`climb-*`, `crest-*`, `dip-*`): with a level camera the climbing car shows a lot of its interior; pitching the camera half-way with the road halves that and moves the horizon (0.13 screens over a lap). Crests hide the road as intended; raising the hills 1.5x changed little, so the hill scale stays 1.
-- **Camera** (`cam-*`): lower is faster-looking; at 1.4 m the car starts to hide the road ahead. **1.6 m high, 6.0 m behind** chosen (road flow 11.8 → 14.7 screens/s, car 0.24 of the screen width). The car and traffic sprite sheets were re-rendered for the new camera; the closer camera makes the car's frames larger (960 × 592), so its sheet grew to 7680 × 5328 (about 164 MB on the GPU; see the sheet-size item in the TODO).
+- **Camera** (`cam-*`): lower is faster-looking; at 1.4 m the car starts to hide the road ahead. **1.6 m high, 6.0 m behind** chosen (raised back to 2.0 m in iteration 2) (road flow 11.8 → 14.7 screens/s, car 0.24 of the screen width). The car and traffic sprite sheets were re-rendered for the new camera; the closer camera makes the car's frames larger (960 × 592), so its sheet grew to 7680 × 5328 (about 164 MB on the GPU; see the sheet-size item in the TODO).
+
+### Iteration 2: bends must show before the car is in them
+
+Reported from driving: on a road that looked straight, the car was suddenly pushed to the side. Two causes, both from iteration 1, and neither caught by a target:
+
+- **The arcade sweep only shows a bend once the car is nearly in it.** It grows with screen height above the car, and everything beyond about 50 m is squeezed into the top few dozen rows, so a bend 150 m ahead moved the far road by 0.00 screens. Fix: `curveLookahead` adds the true, projected bend on top of the sweep (each road its own, so the fork's roads also part in the distance); 1.5 times the true bend, so it reads at a glance.
+- **The lower camera put the car over the vanishing point.** At 1.6 m the headrests and windscreen frame covered the far road, which is exactly where a coming bend first shows. Back to **2.0 m** (6.0 m behind kept): 0.10 screens of clear road between the car and the horizon, against 0.04. Road flow drops from 14.7 to 11.8 screens/s, still inside its target. The car, crash and traffic sheets were re-rendered for 2.0 m.
+
+Two targets now guard this: `curve_ahead` (the tightest bend 150 m ahead must move the road 300 m ahead by 0.03 screens; 0.00 before, 0.03 now) and `horizon_clear` (at least 0.08 screens between the top of the car and the horizon). **25 of 25 targets met.** Lesson: every target was about how a bend looks from inside it; none asked whether it could be seen coming.
 
 ### Still open
 

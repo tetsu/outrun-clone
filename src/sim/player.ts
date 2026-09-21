@@ -1,5 +1,5 @@
 import type { InputState } from "../core/input";
-import { heightAt, segmentAt, wrapDistance, type Track } from "./track";
+import { heightAt, roadUnder, wrapDistance, type Track } from "./track";
 
 /** All speeds in metres per second, distances in metres. */
 export const MAX_SPEED = 293 / 3.6;
@@ -75,7 +75,7 @@ export const handling: HandlingTuning = { ...DEFAULT_HANDLING };
 export interface PlayerState {
   /** Distance of the car's centre along the track. */
   z: number;
-  /** Lateral position from the road centre; positive is right. */
+  /** Lateral position, metres, positive is right: from the road centre, or in a fork from the centre line both roads part from. */
   x: number;
   /** Sideways speed, m/s; positive is right. */
   vx: number;
@@ -88,10 +88,19 @@ export interface PlayerState {
   skid: number;
   laps: number;
   lapTime: number;
+  /** Crash under way: 0 none, 1 spin, 2 roll-over (see collision.ts), with its time and direction (-1 or 1). */
+  crash: number;
+  crashTime: number;
+  crashDir: number;
+  /** Seconds left of being unhittable after a crash. */
+  ghost: number;
 }
 
 export function createPlayer(): PlayerState {
-  return { z: 0, x: 0, vx: 0, speed: 0, steer: 0, gear: 0, offroad: false, skid: 0, laps: 0, lapTime: 0 };
+  return {
+    z: 0, x: 0, vx: 0, speed: 0, steer: 0, gear: 0, offroad: false, skid: 0, laps: 0, lapTime: 0,
+    crash: 0, crashTime: 0, crashDir: 1, ghost: 0,
+  };
 }
 
 /** Share of the full sideways speed the steering gives at this speed. Little when crawling. */
@@ -112,6 +121,7 @@ export function gearPull(gear: 0 | 1, speed: number, h: HandlingTuning = handlin
 
 export function stepPlayer(p: PlayerState, input: InputState, track: Track, dt: number): void {
   const h = handling;
+  p.ghost = Math.max(0, p.ghost - dt);
   if (input.gearToggle) p.gear = p.gear === 0 ? 1 : 0;
 
   // steering eases towards the input, and recentres faster than it turns in
@@ -135,7 +145,8 @@ export function stepPlayer(p: PlayerState, input: InputState, track: Track, dt: 
   const slope = (heightAt(track, p.z + 1) - heightAt(track, p.z)) / 1;
   p.speed -= 9.8 * slope * 0.35 * dt;
 
-  p.offroad = Math.abs(p.x) > track.halfWidth + 0.6;
+  const road = roadUnder(track, p.z, p.x);
+  p.offroad = Math.abs(p.x - road.centre) > track.halfWidth + 0.6;
   if (p.offroad && p.speed > OFFROAD_MAX) p.speed -= h.offroadDrag * dt;
 
   // tyres: hard lock at speed makes them slide, and braking while turning hard locks them
@@ -149,13 +160,12 @@ export function stepPlayer(p: PlayerState, input: InputState, track: Track, dt: 
 
   // lateral: steering against the push of the bend
   const grip = (p.offroad ? h.offroadGrip : 1) * (1 - h.skidGripLoss * p.skid) * (1 - h.brakeGripLoss * locking);
-  const curve = segmentAt(track, p.z).curve;
-  const target = p.steer * h.steerSpeed * steerAuthority(p.speed) * grip - curve * p.speed * p.speed * h.centrifugal;
+  const target = p.steer * h.steerSpeed * steerAuthority(p.speed) * grip - road.curve * p.speed * p.speed * h.centrifugal;
   p.vx += (target - p.vx) * Math.min(1, h.lateralResponse * dt);
   p.x += p.vx * dt;
   const limit = track.halfWidth * 2.2;
-  if (Math.abs(p.x) > limit) {
-    p.x = Math.sign(p.x) * limit;
+  if (Math.abs(p.x - road.centre) > limit) {
+    p.x = road.centre + Math.sign(p.x - road.centre) * limit;
     p.vx = 0;
   }
 

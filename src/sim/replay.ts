@@ -1,5 +1,6 @@
 import type { InputState } from "../core/input";
 import type { PlayerState } from "./player";
+import type { TrafficSnapshot } from "./traffic";
 
 /**
  * A recorded drive: the car's state at the start and every simulation step's input. The
@@ -12,6 +13,10 @@ export interface Replay {
   /** Name of the stage it was driven on. */
   stage: string;
   start: PlayerState;
+  /** The traffic at the start, distances measured like start.z. Absent on a course without traffic. */
+  traffic?: TrafficSnapshot;
+  /** State of the collision random source at the start. */
+  random?: number;
   /** Runs of identical steps: [count, steer, throttle, brake, gearToggle]. */
   runs: Array<[number, number, number, number, 0 | 1]>;
 }
@@ -19,8 +24,8 @@ export interface Replay {
 export class ReplayRecorder {
   private readonly replay: Replay;
 
-  constructor(stage: string, start: PlayerState) {
-    this.replay = { version: 1, stage, start: { ...start }, runs: [] };
+  constructor(stage: string, start: PlayerState, traffic?: TrafficSnapshot, random?: number) {
+    this.replay = { version: 1, stage, start: { ...start }, traffic, random, runs: [] };
   }
 
   /** Call with the input of every simulation step, in order. */

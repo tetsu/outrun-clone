@@ -26,7 +26,7 @@ from pose_person import reach, turn  # noqa: E402
 from seat_person import WHEEL_NORMAL, wheel_point  # noqa: E402
 from sprite_common import (  # noqa: E402
     CAMERA_HEIGHT, MAX_SHEET_WIDTH, REFERENCE_SCREEN_HEIGHT, VFOV_DEG,
-    add_turntable, fit_frame, pack_sheet, set_attitude, setup_scene,
+    add_turntable, clear_coat, fit_frame, pack_sheet, set_attitude, setup_scene,
 )
 
 argv = sys.argv[sys.argv.index("--") + 1:]
@@ -58,6 +58,11 @@ setup_scene(scene, FRAME_W, FRAME_H, FRAME_TOP, CAMERA_DISTANCE)
 pitch_root, yaw_root = add_turntable(scene, riders)
 
 car = bpy.data.objects["car"]
+# The body's baked-texture material gets a glossy clear coat on its paint; glass and trim keep theirs.
+for material in car.data.materials:
+    bsdf = next(nd for nd in material.node_tree.nodes if nd.type == "BSDF_PRINCIPLED")
+    if bsdf.inputs["Base Color"].is_linked:
+        clear_coat(material)
 rigs = [o for o in riders if o.type == "ARMATURE"]
 base_pose = {rig.name: {pb.name: pb.matrix_basis.copy() for pb in rig.pose.bones} for rig in rigs}
 

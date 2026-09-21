@@ -1,0 +1,20 @@
+{
+  "name": "Fork test",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "sections": [
+    { "length": 600 },
+    { "length": 450, "curve": 0.0016 },
+    { "length": 300, "hill": 14 },
+    { "length": 540, "curve": -0.0024, "hill": -14 },
+    { "length": 300, "hill": 22 },
+    { "length": 240, "hill": -22 },
+    { "length": 480 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 1400, "every": 45, "offset": 13, "side": "both" },
+    { "kind": "palm", "from": 1400, "to": 100000, "every": 36, "offset": 11.5, "side": "both" }
+  ],
+  "fork": { "left": "fork-test-left", "right": "fork-test-right" }
+}

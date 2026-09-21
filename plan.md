@@ -192,11 +192,18 @@ Decisions made while building:
 - **Stand-in art lives in `local-assets/`, outside `public/`.** The dev server serves it at `/assets/local/`; a production build cannot include it. This keeps the stand-in car out of anything that ships.
 - **The game never waits on art to start.** Large images load through `createImageBitmap`, because `HTMLImageElement.decode()` can stall in a tab the browser is not painting.
 - **Bends use the arcade curve model.** A bend adds a sideways offset accumulated row by row up the screen, as the 1980s hardware did, so the road sweeps from just in front of the car. The geometrically exact projection stays selectable for comparison.
-- **Camera: 1.6 m high, 6.0 m behind the car, pitching half-way with the road.** Lower and closer than first built, for a faster-looking road; the horizon rises and falls with the hills.
+- **Camera: 2.0 m high, 6.0 m behind the car, pitching half-way with the road.** Closer than first built, for a faster-looking road; the horizon rises and falls with the hills. 1.6 m was tried and put the car over the far road, so bends could not be seen coming.
+- **Bends: the arcade sweep plus the projected bend.** The sweep alone shows a bend only once the car is in it; 1.5 times the true, projected bend is added so a bend shows from far off.
+- **Forks are two roads in one scanline table.** Both roads are at the same height while side by side, each with its own position and bend; the shader colours each pixel from the nearer road. A run is a route of stages attached as the car reaches them (`src/sim/route.ts`).
+- **Traffic all drives the player's way**, as in the original, on every road.
 - **Generated characters are weighted by body region, not by Blender's automatic weights.** Bone-heat weighting fails on meshes made of many overlapping shells, which is what generated models are.
 
-Not built yet from milestones 1–2: the road fork, the track editor, a code licence and `ASSETS.md`.
+- Road fork and routes: a stage ending in a fork splits into two roads and the car commits to the branch it is on; the branch's stage is attached. Prototype stages `fork-test` → `fork-test-left` / `fork-test-right`.
+- Track editor (dev server, F4): sections, roadside rules, fork and next stage, live preview, overview map, save to the stage files.
+- Traffic and collisions: 8 kinds of lane-keeping traffic from a seeded generator, bumps, spin and roll-over crashes with the occupants thrown out, reset to the road.
+
+Not built yet from milestones 1–2: a code licence and `ASSETS.md`.
 
 ## Next step
 
-The road fork prototype (the hardest rendering problem), then the track editor, then traffic. The full task list is in [TODO.md](TODO.md).
+One complete route (M6): stage 1 → fork → stage 2A / 2B with the countdown timer, a checkpoint and game over, on the fork, editor and traffic built so far. The full task list is in [TODO.md](TODO.md).

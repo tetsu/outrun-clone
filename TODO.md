@@ -9,9 +9,9 @@ Milestone numbers (M1–M11) refer to the milestones in `plan.md`.
 In this order; each one unblocks the next.
 
 1. [x] **Decide the curve model (M2).** Decided: the arcade model (a bend adds a sideways offset accumulated row by row up the screen, as the 1980s hardware did), tuned in the feel loop ([docs/feel-loop.md](docs/feel-loop.md)). The projected model stays selectable in the tuning panel. The fork is built on the arcade model.
-2. [ ] **Road fork prototype (M2).** The road widens, then two roads diverge with correct overlap in the scanline table and the shader, and the player's position picks a branch. The hardest rendering problem in the plan.
-3. [ ] **Track editor (M2, M4).** In-browser editor for sections (length, curve, hill) and roadside scenery rules, with live preview. Saving to `src/data/stages/*.json` needs a dev-only write endpoint in `vite.config.ts` (a browser cannot write to the repository by itself).
-4. [ ] **Traffic and collisions (M5).** Tasks are under M5 below.
+2. [x] **Road fork prototype (M2).** A stage ending in `"fork"` widens (two roads overlapping), parts with a sign in the gore, and the two roads bend apart at the same height; the car commits to the branch it is on once there is grass between them, and the branch's stage is attached (`src/sim/route.ts`). Both roads live in the scanline table (two centres per row) and the shader colours each pixel from the nearer road. The branch not taken fades out before the fork's data ends. Prototype stages: `fork-test` → `fork-test-left` / `fork-test-right` → back to `fork-test`. Tests: `tests/fork.test.ts`.
+3. [x] **Track editor (M2, M4).** Dev server only, F4: sections, roadside rules, fork and next stage, with the game as live preview, an overview (plan and height profile; click to put the car there) and Save through a dev-only endpoint (`/__dev/stage/<name>.json` in `vite.config.ts`). Saved files keep the hand-written layout (`tests/stages.test.ts`).
+4. [x] **Traffic and collisions (M5).** Traffic, bumps, spin and roll-over crashes are in; what is left is under M5 below.
 
 Long-lead work for the owner, to start in parallel because everything car-related is redone when it lands:
 
@@ -30,7 +30,8 @@ The speed figure is already 293 km/h; what is missing is how the screen sells it
 
 - [x] **Tuning panel.** F2 in the dev server: every view, course and handling value live, plus the feel report. F9 / F10 record and play back replays.
 - [ ] Roadside density and closeness: objects in an unbroken run right at the road edge. Passes its design target (10 objects/s at top speed) but still looks sparse; set it from the measured figure of the original.
-- [x] Camera lower and closer: 1.6 m high, 6.0 m behind (was 2.0 m, 6.5 m). Car and traffic sheets re-rendered to match.
+- [x] Camera closer: 2.0 m high, 6.0 m behind (was 6.5 m). 1.6 m was tried and hid the far road behind the car, so bends could not be seen coming (feel loop, iteration 2). Car, crash and traffic sheets rendered to match.
+- [x] Bends show before the car is in them: the projected bend is added to the arcade sweep (`curveLookahead` 1.5). Guarded by the `curve_ahead` and `horizon_clear` feel targets.
 - [x] Curve look: arcade model (sideways offset accumulated up the screen), gain 1400; the projected model stays selectable. This settles the curve model decision in "Next up".
 - [x] Bolder hills: the camera pitches half-way with the road, so the horizon travels 0.13 screens over a lap; crests hide the road ahead (5 on the test course).
 
@@ -110,14 +111,16 @@ Half of the original's impression is its music.
 - [ ] Add `.gitattributes` to fix line endings (every commit currently warns about LF/CRLF).
 - [ ] Rewrite `README.md` (it still says "Outrun Clone"): title, how to run, how the Blender tools are used.
 - [ ] Preview deploy in CI on every push (the workflow only type-checks, tests and builds).
-- [ ] Seeded random number generator in `src/core/` — traffic and any random scenery must stay deterministic for replays.
+- [x] Seeded random number generator (`src/sim/random.ts`); traffic and collisions draw only from it, and replays store its state.
 - [ ] Asset loader with a progress display (art currently loads ad hoc in `src/render/carSprite.ts`).
 - [ ] Handle a lost WebGL context (`webglcontextlost` / `webglcontextrestored`): rebuild textures and programs instead of a dead canvas.
 
 ### M2 — Road renderer
 
-- [ ] Curve model decision, road fork, track editor (see "Next up").
-- [ ] Road width that changes along a stage (the fork needs it; also lane-count changes).
+- [x] Curve model decision, road fork, track editor (see "Next up").
+- [ ] Road width that changes along a stage (lane-count changes; the fork does without it, as two overlapping roads). Today a route keeps the first stage's width.
+- [ ] Fork polish: roadside objects in the gore beyond the one sign, a proper overhead direction sign before the split, and a look at the fork with each branch's own scenery and palette (M6).
+- [ ] Track editor: undo, dragging sections on the overview, and editing scenery placed one by one (only rules today).
 - [ ] Road drawn from a road texture (one row per scanline) instead of shader-computed stripes, so the surface, lines and kerbs can be painted per stage.
 - [ ] Per-stage background panoramas: layered images that scroll with curves and hills, replacing the shader-drawn hills for final art.
 - [ ] Check the road at 1080p, 1440p and 4K on real displays.
@@ -140,7 +143,8 @@ Half of the original's impression is its music.
 
 ### M5 — Traffic and collisions
 
-- [ ] Lane-keeping traffic cars and trucks with varied speeds, spawned from the seeded generator.
+- [x] Lane-keeping traffic, all driving the player's way (`src/sim/traffic.ts`): 8 kinds with their own sizes and speed ranges, closing up behind slower vehicles instead of passing through them, spawned far ahead in the haze from the seeded generator, 5 per km. At a fork the left lanes take the left road and the right lanes the right. Rendered sheets in the dev server, code-drawn placeholders otherwise.
+- [ ] Traffic that changes lanes, and traffic placed where it hurts (see Quality targets §5). Density per stage in the stage file.
 - [ ] Traffic vehicle models, rendered at 3–5 angles (`plan.md` → Art). Scripted in Blender or generated; either way original designs, not real production cars. Models go in `art/models/traffic/<name>/<name>.glb` (local only, like the other models).
 - [x] Traffic sprite render: `tools/blender/render_traffic.py` (11 yaw angles, ±40°, camera 10 m behind; no occupants). `prep_car.py` is used as it is, with the length per vehicle. The camera, frame fitting and sheet packing are shared with the player car in `sprite_common.py`. Output goes to `local-assets/traffic/<name>/`.
 - [ ] Stand-in traffic models are in (`deco-truck` 6.0 m, `kei-truck` 3.4 m, `supercar` 4.5 m, `yankee` 4.4 m, `bus` 7.3 m — the lengths given to `prep_car.py`). Before any of them ships:
@@ -151,11 +155,13 @@ Half of the original's impression is its music.
 - [ ] Traffic renders are overexposed on white and chrome bodies (the kei truck loses its shading). Lower the light for traffic or fix it with the toon shader.
 - [ ] Each generated model is 1.8–1.9 million faces and a 60–80 MB file. Decimate in `prep_car.py` (the characters are already cut to 250k faces).
 - [ ] Traffic sheets are 5–8 thousand pixels wide each (the bus and the truck use two rows). They count towards the texture budget (M4) and the 4096-pixel limit.
-- [ ] Collision boxes for traffic and roadside objects.
-- [ ] Light bump: nudge and slowdown.
-- [ ] Hard hit and scenery hit: spin or flip crash, reset to the road centre.
-- [ ] Spin and crash frames for the player car sprite (extra rows in `render_car.py`).
-- [ ] Crash poses for driver and passenger (thrown out, sitting by the road) — original gestures.
+- [x] Collision boxes for traffic and roadside objects (`src/sim/collision.ts`): trunks and poles are solid; posts are knocked aside for a 10% loss of speed.
+- [x] Light bump: slowed to behind the vehicle and nudged; side contact pushes the cars apart.
+- [x] Hard hit and scenery hit: a spin (70 km/h or more faster than the vehicle hit, or a tree or sign above 50 km/h) or a roll-over (170 km/h faster, or scenery above 160 km/h); then back on the centre of the road, at a standstill, blinking and unhittable for 2.5 s. Replays store the traffic and the collision random state.
+- [ ] Crash sounds, and the time lost to a crash checked against the original once the timer exists (M6).
+- [x] Spin and roll-over frames for the player car: `tools/blender/render_crash.py car` (24 spin yaws with the occupants aboard, 12 roll angles without them, half resolution: 8160 × 1152).
+- [x] Crash pose for driver and passenger, sitting on the road leaning back on their hands (`sitting_ground` in `pose_person.py`; `render_crash.py people`). In a roll-over they are thrown out ahead and sit there until the car is reset.
+- [ ] Crash follow-ups: people in flight use the sitting frame (no tumbling frames); an argument between the two afterwards (Quality targets §4); the upside-down roll frames show the car's bare underside, which the stand-in model barely has.
 
 ### M6 — Stage structure
 
@@ -216,8 +222,10 @@ The current car and both characters are local stand-ins (not in git, never shipp
 - [ ] **Original car design (required before release; long lead, start now).** The stand-in Tripo model is a real production car. Design an original two-seat open sports car as a concept image, generate or commission the model, and run it through `tools/blender/prep_car.py`. See `plan.md` → Art.
 - [ ] **Per-car measurements in a data file.** Seat hip points and the steering wheel's centre, normal and radius are constants in `seat_person.py`, and `fix_car_materials.py` is written for the stand-in. Move the measurements to a JSON file next to each model so a new car does not mean editing scripts.
 - [ ] **CHIBA wordmark and M emblem.** Original lettering and emblem shape (not a rounded-square badge), applied to the new car.
-- [ ] **Sprite sheet size — do this before scenery and traffic art arrive.** The 65-frame sheet is 7680 × 5328 since the camera moved closer: about 164 MB on the GPU (218 MB with mipmaps), and wider than the 4096-pixel texture limit of some integrated and mobile GPUs. The frames cannot be mirrored to halve them, because the driver sits on one side. Options: trim each frame to its content with the atlas packer, split into pages of 4096 or less, GPU texture compression, half-resolution sheets for mobile.
+- [ ] **Sprite sheet size — do this before scenery and traffic art arrive.** The 65-frame sheet is 7680 × 5760 since the camera moved closer: about 177 MB on the GPU (236 MB with mipmaps), plus the crash sheet (8160 × 1152, 38 MB), and wider than the 4096-pixel texture limit of some integrated and mobile GPUs. The frames cannot be mirrored to halve them, because the driver sits on one side. Options: trim each frame to its content with the atlas packer, split into pages of 4096 or less, GPU texture compression, half-resolution sheets for mobile.
 - [ ] **Decide how the car is lit per time of day.** Five lights (sunrise → night) as five re-rendered sheets multiplies the memory above; a tint or palette step in the sprite shader costs nothing. Decide together with the style guide (M4).
+- [x] **Glossy paint.** `clear_coat()` in `sprite_common.py` gives the paint (told apart by the saturation of the baked texture) a clear coat, and every sprite render reflects a sky with a sharp horizon, dark road below, so the horizon draws a line along the body. `rear_panel.py` now carries the rear panel's creases through the removed badge and lettering and gives them the panel's normals; before, the gloss showed the old letters as ghosts.
+- [ ] Gloss follow-ups: the rear panel reads a little pale (the bright horizon); traffic sheets get the new sky on their next render but no clear coat yet (their paint colours vary, so the saturation mask needs checking per vehicle); decide how much gloss survives the toon shader.
 - [ ] Toon shader and outlines in the sprite render (planned style; sprites are currently rendered with realistic shading).
 
 ### Passenger (`art/models/passenger/passenger2.glb`)

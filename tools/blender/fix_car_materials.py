@@ -17,8 +17,13 @@ Usage:
 """
 import sys
 
+import os
+
 import bpy
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from rear_panel import RELIEF, REAR_BOXES, flatten_rear_boxes, panel_target, vertex_arrays  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 in_blend, out_blend = argv[0], argv[1]
@@ -134,38 +139,18 @@ is_black |= front & (x > 0.22) & (x < 0.38) & (z > 0.57) & (z < 0.68)   # small 
 print(f"black faces={int(is_black.sum())}")
 
 # ---------------------------------------------------------------- rear badge and lettering
-# Each box is flattened onto the surrounding panel and re-pointed at a clean spot of the
-# baked texture, so it keeps the original paint material and matches its surroundings.
-n_verts = len(me.vertices)
-co = np.empty(n_verts * 3, np.float32)
-me.vertices.foreach_get("co", co)
-co = co.reshape(n_verts, 3)
-rear_boxes = [(-0.15, 0.15, 0.79, 1.01), (0.39, 0.64, 0.74, 0.84), (-0.61, -0.39, 0.75, 0.85)]
-
-
-def panel_terms(px, pz):
-    return np.stack([np.ones(len(px)), px, pz, px ** 2, pz ** 2, px * pz], axis=1)
-
+# Each box is flattened onto the surrounding panel (rear_panel.py) and re-pointed at a clean
+# spot of the baked texture, so it keeps the original paint material and matches its surroundings.
+co, vnormals = vertex_arrays(me)
+panel_normals, moved = flatten_rear_boxes(co, vnormals)
+print("rear boxes: vertices flattened", moved)
 
 outward = normals[:, 1] > 0.6   # the outer skin faces the rear; the shell's inner side does not
-for x0, x1, z0, z1 in rear_boxes:
+for x0, x1, z0, z1 in REAR_BOXES:
     inside = (y > 1.85) & (x > x0) & (x < x1) & (z > z0) & (z < z1)
     m = 0.05
     ring = ((y > 1.85) & (x > x0 - m) & (x < x1 + m) & (z > z0 - m) & (z < z1 + m)
             & ~inside & is_red & outward)
-    fit, *_ = np.linalg.lstsq(panel_terms(x[ring], z[ring]), y[ring], rcond=None)
-
-    # Pull the relief onto the fitted panel, fully in the middle and fading to nothing at the
-    # box edges, so no step appears where the box ends.
-    vin = (co[:, 1] > 1.85) & (co[:, 0] > x0) & (co[:, 0] < x1) & (co[:, 2] > z0) & (co[:, 2] < z1)
-    vx, vy, vz = co[vin, 0], co[vin, 1], co[vin, 2]
-    target_y = panel_terms(vx, vz) @ fit
-    edge = np.minimum(np.minimum(vx - x0, x1 - vx) / 0.05, np.minimum(vz - z0, z1 - vz) / 0.025)
-    t = np.clip(edge, 0.0, 1.0)
-    weight = t * t * (3 - 2 * t)
-    skin = np.abs(vy - target_y) < 0.04
-    idx = np.flatnonzero(vin)[skin]
-    co[idx, 1] = (vy + weight * (target_y - vy))[skin]
 
     # The baked paint gets lighter towards the top of the panel. Repaint each face with the
     # colour found at the same height just left and right of the box, in 5 mm bands.
@@ -187,20 +172,21 @@ for x0, x1, z0, z1 in rear_boxes:
     nearest = filled[np.argmin(np.abs(np.arange(n_bins)[:, None] - filled[None, :]), axis=1)]
     ref_uv = ref_uv[nearest]
 
-    on_skin = inside & (np.abs(y - panel_terms(x, z) @ fit) < 0.04)
-    skin_idx = np.flatnonzero(on_skin)
+    box_faces, panel_y, _ = panel_target(centers, normals, (x0, x1, z0, z1))
+    skin_idx = box_faces[np.abs(y[box_faces] - panel_y) < RELIEF]
     skin_bin = np.clip(((z[skin_idx] - z0) / 0.005).astype(np.int32), 0, n_bins - 1)
     for f, b in zip(skin_idx, skin_bin):
         uv[loop_start[f]:loop_start[f] + loop_total[f]] = ref_uv[b]
-    print(f"rear box x={x0}..{x1}: flattened {len(idx)} verts, repainted {len(skin_idx)} faces "
+    print(f"rear box x={x0}..{x1}: repainted {len(skin_idx)} faces "
           f"from {len(filled)}/{n_bins} height bands")
 
 me.vertices.foreach_set("co", co.reshape(-1))
 # The glTF importer stores the file's normals as custom normals. They still describe the old
-# relief, so drop them and let Blender compute smooth normals from the edited geometry.
+# relief, so replace them: smooth normals everywhere, and the panel's own inside the boxes.
 if "custom_normal" in me.attributes:
     me.attributes.remove(me.attributes["custom_normal"])
 me.polygons.foreach_set("use_smooth", np.ones(n, bool))
+me.normals_split_custom_set_from_vertices(panel_normals)
 try:
     uv_layer.uv.foreach_set("vector", uv.reshape(-1))
 except AttributeError:

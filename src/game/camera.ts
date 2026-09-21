@@ -21,17 +21,20 @@ export interface ViewTuning {
   curveModel: CurveModel;
   /** Arcade model only: how strongly a bend sweeps the road across the screen. */
   curveGain: number;
+  /** Arcade model only: share of the true, projected bend added, so a bend shows from far off. */
+  curveLookahead: number;
   /** Length of one light or dark band of the road and verge, metres. Must divide 18. */
   stripeLength: number;
 }
 
 export const DEFAULT_VIEW: Readonly<ViewTuning> = {
-  height: 1.6,
+  height: 2.0,
   distance: 6.0,
   vfovDeg: 60,
   pitchFollow: 0.5,
   curveModel: "arcade",
   curveGain: 1400,
+  curveLookahead: 1.5,
   stripeLength: 9,
 };
 

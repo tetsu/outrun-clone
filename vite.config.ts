@@ -6,6 +6,7 @@ import { defineConfig } from "vitest/config";
 
 const LOCAL_ASSETS = fileURLToPath(new URL("./local-assets", import.meta.url));
 const SNAPSHOTS = fileURLToPath(new URL("./dev-snapshots", import.meta.url));
+const STAGES = fileURLToPath(new URL("./src/data/stages", import.meta.url));
 const TYPES: Record<string, string> = { ".json": "application/json", ".png": "image/png" };
 
 /**
@@ -61,9 +62,51 @@ function snapshots(): Plugin {
   };
 }
 
+/**
+ * Dev server only: POST /__dev/stage/<name>.json writes a stage file from the track editor to
+ * src/data/stages/. A browser cannot write to the repository by itself, and a production build
+ * has no such endpoint. The body must be a JSON object with sections; it is saved as sent, so
+ * the editor decides the layout.
+ */
+function stageFiles(): Plugin {
+  return {
+    name: "boso-run:stage-files",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/__dev/stage", (req, res) => {
+        const name = decodeURIComponent((req.url ?? "").split("?")[0]).replace(/^\//, "");
+        if (req.method !== "POST" || !/^[a-z0-9-]{1,60}\.json$/.test(name)) {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          let stage: unknown;
+          try {
+            stage = JSON.parse(text);
+          } catch {
+            stage = null;
+          }
+          if (!stage || typeof stage !== "object" || !Array.isArray((stage as { sections?: unknown }).sections)) {
+            res.statusCode = 422;
+            res.end();
+            return;
+          }
+          writeFileSync(join(STAGES, name), text.endsWith("\n") ? text : text + "\n");
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: "./",
-  plugins: [localAssets(), snapshots()],
+  plugins: [localAssets(), snapshots(), stageFiles()],
   server: { port: 5173, strictPort: true },
   test: { include: ["tests/**/*.test.ts"] },
 });

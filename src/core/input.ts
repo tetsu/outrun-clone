@@ -37,7 +37,7 @@ export class Input {
   constructor(target: Window = window) {
     target.addEventListener("keydown", (e) => {
       const action = DEFAULT_KEYS[e.code];
-      if (!action) return;
+      if (!action || isTyping(e.target)) return;
       e.preventDefault();
       if (e.repeat) return;
       if (action === "menu") this.onMenu?.();
@@ -80,4 +80,10 @@ export class Input {
     if (gearToggle) this.gearPresses--;
     return { steer, throttle, brake, gearToggle };
   }
+}
+
+/** Keys typed into a text or number field belong to the field, not to the car. */
+function isTyping(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  return target instanceof HTMLInputElement && target.type !== "range" && target.type !== "button" && target.type !== "checkbox";
 }

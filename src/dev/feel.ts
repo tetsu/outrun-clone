@@ -42,6 +42,8 @@ const LANES = 3;
 /** The player car's size, metres, for how much of the screen it fills. */
 const CAR_WIDTH = 1.85;
 const CAR_HALF_LENGTH = 2.25;
+/** Height of the top of the car as the camera sees it (windscreen frame, headrests, occupants' heads), metres. */
+const CAR_TOP = 1.3;
 const KMH = 3.6;
 /** How far from the line a car may wander and still count as holding a bend, metres. */
 const HOLD_TOLERANCE = 2;
@@ -55,6 +57,8 @@ export const FEEL_TARGETS: FeelTarget[] = [
   { id: "car_width", group: "speed", label: "Car width on a 16:9 screen", unit: "of width", min: 0.19, max: 0.27, why: "Plan: the car covers about a quarter of the screen." },
   { id: "curve_near", group: "speed", label: "Tightest bend: sweep a quarter of the way up the screen", unit: "screens", min: 0.02, why: "The road visibly curves right in front of the car." },
   { id: "curve_far", group: "speed", label: "Tightest bend: sweep near the horizon", unit: "screens", min: 0.2, max: 0.6, why: "A strong sweep that stays on the screen." },
+  { id: "curve_ahead", group: "speed", label: "Tightest bend 150 m ahead: sideways shift of the road 300 m ahead", unit: "screens", min: 0.03, why: "A bend must show before the car is in it; otherwise the car is pushed off a road that looks straight." },
+  { id: "horizon_clear", group: "speed", label: "Gap between the top of the car and the horizon", unit: "screens", min: 0.08, why: "The far road, where a coming bend first shows, must not be hidden behind the car." },
   { id: "crests_hidden", group: "speed", label: "Crests that hide the road ahead (test course)", unit: "crests", min: 3, why: "Blind crests: the road drops out of sight." },
   { id: "horizon_travel", group: "speed", label: "Horizon travel over a lap", unit: "screens", min: 0.06, why: "The horizon rises and falls clearly with the hills." },
   // handling
@@ -213,17 +217,25 @@ function centreAt(rows: Float32Array, row: number): number {
 }
 
 /** How far the tightest bend sweeps the road sideways, in screen heights, near and far. */
-function curveSweep(): { near: number; far: number } {
+function curveSweep(): { near: number; far: number; ahead: number } {
   const width = 1920;
   const height = 1080;
   const track = flatTrack([{ length: 4000, curve: TIGHT_CURVE }]);
   const rows = new Float32Array(height * ROW_FLOATS);
-  const camera = placeCamera(track, 2000, 0, width, height);
-  fillRoadTable(track, camera, rows);
-  const bottom = centreAt(rows, height - 1);
-  const near = centreAt(rows, Math.round(height * 0.75));
-  const far = centreAt(rows, Math.round(camera.horizon! + height * 0.04));
-  return { near: Math.abs(near - bottom) / height, far: Math.abs(far - bottom) / height };
+  const sweep = (z: number, row: (horizon: number) => number): number => {
+    const camera = placeCamera(track, z, 0, width, height);
+    fillRoadTable(track, camera, rows);
+    return Math.abs(centreAt(rows, Math.round(row(camera.horizon!))) - centreAt(rows, height - 1)) / height;
+  };
+  const nearHorizon = (horizon: number): number => horizon + height * 0.04;
+  // The bend starts at 1500 m and eases in over its first quarter (see buildStage).
+  const straight = flatTrack([{ length: 1500 }, { length: 600, curve: TIGHT_CURVE }, { length: 2000 }]);
+  const camera = placeCamera(straight, 1350, 0, width, height);
+  fillRoadTable(straight, camera, rows);
+  // the far end of the road: the row 300 m ahead of the camera (flat road)
+  const far = camera.horizon! + (view.height * camera.focal) / 300;
+  const ahead = Math.abs(centreAt(rows, Math.round(far)) - centreAt(rows, height - 1)) / height;
+  return { near: sweep(2000, () => height * 0.75), far: sweep(2000, nearHorizon), ahead };
 }
 
 /**
@@ -275,6 +287,8 @@ export function measureFeel(stage: StageData): FeelResult[] {
   const sweep = curveSweep();
   values.curve_near = sweep.near;
   values.curve_far = sweep.far;
+  values.curve_ahead = sweep.ahead;
+  values.horizon_clear = ((view.height - CAR_TOP) * focalLength(1080)) / view.distance / 1080;
   const lap = lapView(track);
   values.crests_hidden = lap.crests;
   values.horizon_travel = lap.horizonTravel;

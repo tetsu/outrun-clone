@@ -9,6 +9,10 @@ const DASH_PERIOD = 12;
 /**
  * Draws the road from the per-scanline table. The CPU decides where the road is on each
  * row; this shader only colours pixels, anti-aliasing every edge so it holds up at 4K.
+ *
+ * Where the road forks a row holds two roads. Each pixel is coloured as part of the nearer
+ * one, so while they overlap they read as one wide road, and once they part, grass and both
+ * sets of rumble strips appear between them.
  */
 const FRAGMENT = `#version 300 es
 precision highp float;
@@ -25,6 +29,8 @@ float band(float v, float a, float b, float w) {
   return smoothstep(a - w, a + w, v) - smoothstep(b - w, b + w, v);
 }
 
+vec3 road(float dx, float halfWidth, float dist, float perRow);
+
 void main() {
   int row = int(uHeight - gl_FragCoord.y);
   vec4 r0 = texelFetch(uRows, ivec2(0, row), 0);
@@ -34,8 +40,18 @@ void main() {
   float dist = r0.z;
   float perRow = r1.y;
 
+  // The nearer road: b where it shows and the pixel is past the midpoint between the two.
+  float centreB = r0.x + r1.z;
+  bool onB = r1.w > 0.0 && abs(gl_FragCoord.x - centreB) < abs(gl_FragCoord.x - r0.x);
+  vec3 colorA = road(gl_FragCoord.x - r0.x, halfWidth, dist, perRow);
+  vec3 color = onB ? mix(colorA, road(gl_FragCoord.x - centreB, halfWidth, dist, perRow), r1.w) : colorA;
+  outColor = vec4(mix(color, uFog, r1.x), 1.0);
+}
+
+// The colour of a pixel dx pixels from the centre of a road.
+vec3 road(float dx, float halfWidth, float dist, float perRow) {
   // u: -1 and 1 are the road edges. One pixel covers 1/halfWidth in u.
-  float u = (gl_FragCoord.x - r0.x) / halfWidth;
+  float u = dx / halfWidth;
   float au = abs(u);
   float px = 0.75 / halfWidth;
 
@@ -49,8 +65,8 @@ void main() {
   vec3 color = mix(uGrassDark, uGrassLight, light);
   vec3 rumble = mix(uRumbleA, uRumbleB, light);
   color = mix(color, rumble, 1.0 - smoothstep(1.13 - px, 1.13 + px, au));
-  vec3 road = mix(uRoadDark, uRoadLight, light);
-  color = mix(color, road, 1.0 - smoothstep(1.0 - px, 1.0 + px, au));
+  vec3 surface = mix(uRoadDark, uRoadLight, light);
+  color = mix(color, surface, 1.0 - smoothstep(1.0 - px, 1.0 + px, au));
 
   // solid edge lines
   float lines = band(au, 0.925, 0.955, px);
@@ -63,9 +79,7 @@ void main() {
     float centre = -1.0 + 2.0 * i / uLanes;
     lines = max(lines, band(u, centre - 0.011, centre + 0.011, px) * dash);
   }
-  color = mix(color, uLine, lines * (1.0 - smoothstep(1.0, 1.0 + px, au)));
-
-  outColor = vec4(mix(color, uFog, r1.x), 1.0);
+  return mix(color, uLine, lines * (1.0 - smoothstep(1.0, 1.0 + px, au)));
 }`;
 
 const UNIFORMS = [

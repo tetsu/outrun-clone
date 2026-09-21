@@ -125,6 +125,9 @@ const ITEMS: Array<[string, Painter, number, number, number, number]> = [
   ["shadow", shadow, 512, 256, 1, 0.5],
 ];
 
+/** The kinds of roadside object a stage can place (the shadow is drawn under cars, not placed). */
+export const SCENERY_KINDS = ITEMS.map(([name]) => name).filter((name) => name !== "shadow");
+
 export function createSceneryAtlas(): SceneryAtlas {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = ATLAS_SIZE;

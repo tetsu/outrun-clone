@@ -3,14 +3,24 @@ import { Input, type InputState } from "./core/input";
 import { GameLoop, SIM_DT, SIM_HZ } from "./core/loop";
 import { loadSettings, saveSettings } from "./core/settings";
 import { BrowserStorage } from "./core/storage";
-import stageData from "./data/stages/test-course.json";
 import { Game } from "./game/game";
 import { Hud } from "./game/hud";
 import { OptionsPanel } from "./game/options";
 import { createPlaceholderCarSprite, loadRenderedCarSprite } from "./render/carSprite";
+import { loadSheet, type CrashCarMeta, type CrashPeopleMeta } from "./render/crashSprite";
 import { Renderer } from "./render/renderer";
+import { loadRenderedVehicles } from "./render/trafficSprite";
 import type { PlayerState } from "./sim/player";
-import { buildTrack, type StageData } from "./sim/track";
+import { Route, type Stages } from "./sim/route";
+import type { StageData } from "./sim/track";
+
+/** Every stage file, by name. */
+const STAGES: Stages = Object.fromEntries(
+  Object.entries(import.meta.glob<StageData>("./data/stages/*.json", { eager: true, import: "default" }))
+    .map(([path, data]) => [path.replace(/^.*\/|\.json$/g, ""), data]),
+);
+/** Where a run starts. The fork prototype until the real stage 1 exists. */
+const FIRST_STAGE = "fork-test";
 
 async function main(): Promise<void> {
   const canvas = document.getElementById("game") as HTMLCanvasElement;
@@ -24,12 +34,14 @@ async function main(): Promise<void> {
   const settings = loadSettings(storage);
   setLanguage(settings.language);
 
-  const stage = stageData as StageData;
-  const game = new Game(buildTrack(stage));
+  const game = new Game(new Route(STAGES, FIRST_STAGE));
   const renderer = new Renderer(gl, createPlaceholderCarSprite(gl));
   void loadRenderedCarSprite(gl).then((sprite) => {
     if (sprite) renderer.car = sprite;
   });
+  void loadRenderedVehicles(gl, renderer.vehicles);
+  void loadSheet<CrashCarMeta>(gl, "assets/local/player-car/crash/").then((sheet) => (renderer.crashCar = sheet));
+  void loadSheet<CrashPeopleMeta>(gl, "assets/local/crash-people/").then((sheet) => (renderer.crashPeople = sheet));
   const input = new Input();
   const hud = new Hud(document.getElementById("hud")!);
 
@@ -81,7 +93,9 @@ async function main(): Promise<void> {
   //   __boso.tune({ view: { curveModel: "projected" } })
   if (import.meta.env.DEV) {
     const { installDevTools } = await import("./dev/devTools");
-    dev = installDevTools({ game, stage, storage, hooks });
+    dev = installDevTools({ game, stages: STAGES, storage, hooks });
+    const { installEditor } = await import("./dev/editor");
+    installEditor({ game, stages: STAGES, storage });
     const advance = (seconds: number, held: Partial<InputState> = {}): PlayerState => {
       const state: InputState = { steer: 0, throttle: 0, brake: 0, gearToggle: false, ...held };
       for (let i = 0; i < Math.round(seconds * SIM_HZ); i++) {
@@ -94,6 +108,7 @@ async function main(): Promise<void> {
     };
     Object.assign(window, {
       __boso: {
+        game,
         player: game.player,
         advance,
         tune: (values: import("./dev/tuning").PartialTuning) => dev?.tune(values),

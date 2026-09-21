@@ -1,0 +1,17 @@
+{
+  "name": "Fork test: left branch (coast)",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "sections": [
+    { "length": 360 },
+    { "length": 600, "curve": 0.003, "hill": 8 },
+    { "length": 300, "curve": -0.0018 },
+    { "length": 480, "curve": 0.0012, "hill": -8 },
+    { "length": 600 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "palm", "from": 0, "to": 100000, "every": 30, "offset": 11.5, "side": "both" }
+  ],
+  "next": "fork-test"
+}

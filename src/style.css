@@ -168,3 +168,51 @@ body {
   background: #c8102e;
   font: 700 12px ui-monospace, Consolas, monospace;
 }
+.dev-editor {
+  right: auto;
+  left: 0;
+  width: min(34rem, 100vw);
+}
+.dev-map {
+  display: block;
+  width: 100%;
+  margin: 0.4rem 0;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: crosshair;
+}
+.dev-rows {
+  display: grid;
+  gap: 0.15rem;
+}
+.dev-row {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+}
+.dev-row.selected {
+  background: rgba(255, 216, 74, 0.18);
+}
+.dev-row > span {
+  width: 1.6rem;
+  text-align: right;
+  color: #8a93a8;
+}
+.dev-row input[type="number"] {
+  width: 5.2rem;
+  font: inherit;
+}
+.dev-row button,
+.dev-row select {
+  font: inherit;
+  padding: 0.1rem 0.35rem;
+}
+.dev-panel label.dev-field {
+  grid-template-columns: 9.5rem 1fr;
+}
+.dev-field input,
+.dev-field select {
+  font: inherit;
+}
