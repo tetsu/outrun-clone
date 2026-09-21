@@ -9,3 +9,6 @@ art/models/**/*.blend1
 # Sprites rendered from stand-in models. Served by the dev server only (see vite.config.ts),
 # never part of a build. The game falls back to drawn placeholders without them.
 local-assets/
+
+# Python bytecode from running the Blender scripts
+__pycache__/
