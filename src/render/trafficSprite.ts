@@ -7,7 +7,10 @@ export interface VehicleSheetMeta {
   frameWidth: number;
   frameHeight: number;
   columns: number;
-  yaws: number[];
+  /** Sideways offset of each frame: metres from the camera to the vehicle, positive to the right.
+   *  The vehicle stays parallel to the road; see tools/blender/render_traffic.py for why frames
+   *  go by offset and not by angle. */
+  offsets: number[];
   /** The road point under the vehicle's centre, frame pixels from the top-left. */
   anchorX: number;
   anchorY: number;
@@ -28,7 +31,9 @@ const LOOKS: Record<string, [height: number, body: string]> = {
   "kei-wagon": [1.7, "#9fc7e6"],
   "peanut-hatchback": [1.5, "#f2c14e"],
   "grey-sedan": [1.45, "#8d939b"],
+  "station-wagon": [1.5, "#3f5a7a"],
   yankee: [1.35, "#6b2fa0"],
+  "yellow-sport": [1.25, "#f5d000"],
   supercar: [1.15, "#d7261e"],
   "deco-truck": [3.0, "#2e6fbf"],
   bus: [3.1, "#f4f1e8"],
@@ -74,7 +79,7 @@ function placeholder(gl: WebGL2RenderingContext, kind: string): VehicleSprite {
   c.fillRect((left + right) / 2 - 0.2 * m, bottom - 0.5 * m, 0.4 * m, 0.2 * m);
   return {
     texture: createTexture(gl, canvas),
-    meta: { image: "", frameWidth: w, frameHeight: h, columns: 1, yaws: [0], anchorX: w / 2, anchorY: bottom, pixelsPerMetre: m },
+    meta: { image: "", frameWidth: w, frameHeight: h, columns: 1, offsets: [0], anchorX: w / 2, anchorY: bottom, pixelsPerMetre: m },
     sheetWidth: w,
     sheetHeight: h,
   };
@@ -107,11 +112,11 @@ export async function loadRenderedVehicles(gl: WebGL2RenderingContext, into: Rec
   }));
 }
 
-/** Texture rectangle of the frame nearest the viewing angle (degrees, positive: seen from its left). */
-export function vehicleFrame(sprite: VehicleSprite, yawDeg: number): { u0: number; v0: number; u1: number; v1: number } {
+/** Texture rectangle of the frame nearest a sideways offset: metres from the camera to the vehicle, positive to the right. */
+export function vehicleFrame(sprite: VehicleSprite, offset: number): { u0: number; v0: number; u1: number; v1: number } {
   const m = sprite.meta;
   let index = 0;
-  for (let i = 1; i < m.yaws.length; i++) if (Math.abs(m.yaws[i] - yawDeg) < Math.abs(m.yaws[index] - yawDeg)) index = i;
+  for (let i = 1; i < m.offsets.length; i++) if (Math.abs(m.offsets[i] - offset) < Math.abs(m.offsets[index] - offset)) index = i;
   const x = (index % m.columns) * m.frameWidth;
   const y = Math.floor(index / m.columns) * m.frameHeight;
   return { u0: x / sprite.sheetWidth, v0: y / sprite.sheetHeight, u1: (x + m.frameWidth) / sprite.sheetWidth, v1: (y + m.frameHeight) / sprite.sheetHeight };

@@ -111,9 +111,13 @@ export class Renderer {
           if (!art) continue;
           const w = art.width * p.scale;
           const h = art.height * p.scale;
-          const x = (item.road === "b" ? p.xB : p.x) + item.offset * p.scale - w / 2;
+          const onB = item.road === "b";
+          // objects beside the branch not taken fade out with it
+          const alpha = onB ? p.segment.fadeB1 : 1;
+          if (alpha <= 0) continue;
+          const x = (onB ? p.xB : p.x) + item.offset * p.scale - w / 2;
           if (x > width || x + w < 0) continue;
-          this.sprites.quad(x, p.y - h, w, h, art.u0, art.v0, art.u1, art.v1, p.clipY, p.fog, 1);
+          this.sprites.quad(x, p.y - h, w, h, art.u0, art.v0, art.u1, art.v1, p.clipY, p.fog, alpha);
         }
       }
       const here = bySegment.get(p.segment.index);
@@ -133,7 +137,7 @@ export class Renderer {
 
   /**
    * One traffic vehicle, placed on its road between the edges of the segment it is in and
-   * scaled for its distance. The frame is picked by the angle it is seen at.
+   * scaled for its distance. The frame is picked by how far to the side of the camera it is.
    */
   private drawVehicle(game: Game, v: RenderState["vehicles"][number], camera: ViewParams, projected: ProjectedSegment[], index: number): void {
     const depth = v.z - camera.z;
@@ -152,14 +156,21 @@ export class Renderer {
     const span = 1 / near.depth - 1 / far.depth;
     const t = span > 1e-9 ? Math.min(1, Math.max(0, (1 / near.depth - 1 / depth) / span)) : 0;
     const scale = focal / depth;
-    const roadX = v.road === "b" ? near.xB + (far.xB - near.xB) * t : near.x + (far.x - near.x) * t;
-    const x = roadX + (v.x - roadCentre(game.track, v.z, v.road)) * scale;
+    const lateral = v.x - roadCentre(game.track, v.z, v.road);
+    const nearX = (v.road === "b" ? near.xB : near.x) + lateral * near.scale;
+    const farX = (v.road === "b" ? far.xB : far.x) + lateral * far.scale;
+    const x = nearX + (farX - nearX) * t;
     const y = near.y + (far.y - near.y) * t;
 
     const sprite = this.vehicles[v.kind];
     if (!sprite) return;
     const m = sprite.meta;
-    const f = vehicleFrame(sprite, (Math.atan((x - width / 2) / focal) * 180) / Math.PI);
+    // The frame whose sides run the way the vehicle's lane runs on screen. A line along a
+    // straight road x metres to the side runs x / (eye height) pixels across per pixel down;
+    // in a bend or on a hill the lane runs another way, and the frame follows the lane.
+    const rise = near.y - far.y;
+    const offset = rise > 0.5 ? (view.height * (nearX - farX)) / rise : (x - width / 2) / scale;
+    const f = vehicleFrame(sprite, offset);
     const k = scale / m.pixelsPerMetre;
     const w = m.frameWidth * k;
     if (x - m.anchorX * k > width || x - m.anchorX * k + w < 0) return;

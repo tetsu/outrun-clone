@@ -3,7 +3,8 @@ import { SIM_DT } from "../src/core/loop";
 import { Game } from "../src/game/game";
 import { fillRoadTable, ROW_FLOATS } from "../src/render/roadTable";
 import { Route, type Stages } from "../src/sim/route";
-import { FORK, roadUnder, type StageData } from "../src/sim/track";
+import type { PlayerState } from "../src/sim/player";
+import { FORK, roadUnder, SEGMENT_LENGTH, type StageData } from "../src/sim/track";
 
 const HALF_WIDTH = 6.5;
 const stage = (name: string, extra: Partial<StageData>): StageData => ({
@@ -44,6 +45,24 @@ describe("fork", () => {
       expect(placed[1].id).toBe(next);
       expect(offroad).toBe(0);
     }
+  });
+
+  it("puts roadside objects on road b only inside the fork", () => {
+    // Seen from inside a fork, road b beyond it still carries the fork's bend, so objects on
+    // road b past the fork would swing across the screen.
+    const palms = { kind: "palm", from: 0, to: 100000, every: 30, offset: 11.5, side: "both" as const };
+    const stages: Stages = {
+      start: { ...STAGES.start, scenery: [palms] },
+      coast: { ...STAGES.coast, scenery: [palms] },
+      inland: STAGES.inland,
+    };
+    const route = new Route(stages, "start");
+    route.update({ z: FORK_START + FORK.commit + 1, x: -4 } as PlayerState);
+    const onB = route.track.segments.filter((s) => s.scenery.some((item) => item.road === "b")).map((s) => s.index);
+    expect(route.placed[1].id).toBe("coast");
+    expect(onB.length).toBeGreaterThan(0);
+    expect(Math.min(...onB)).toBeGreaterThanOrEqual(FORK_START / SEGMENT_LENGTH);
+    expect(Math.max(...onB)).toBeLessThan(route.placed[1].start / SEGMENT_LENGTH);
   });
 
   it("draws one road before the fork, one wide road while they overlap, two apart after", () => {

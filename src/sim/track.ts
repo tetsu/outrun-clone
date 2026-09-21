@@ -175,6 +175,8 @@ export function buildStage(stage: StageData, tuning: CourseTuning = DEFAULT_COUR
   }
 
   let commit: number | undefined;
+  // the first segment of the fork; before it there is only one road
+  const forkFrom = stage.fork ? segments.length : Infinity;
   if (stage.fork) {
     const forkStart = segments.length * SEGMENT_LENGTH;
     commit = forkStart + FORK.commit;
@@ -206,9 +208,11 @@ export function buildStage(stage: StageData, tuning: CourseTuning = DEFAULT_COUR
     const last = Math.min(segments.length - 1, Math.floor(rule.to / SEGMENT_LENGTH));
     const step = Math.max(1, Math.round(rule.every / tuning.sceneryDensity / SEGMENT_LENGTH));
     for (let i = first; i <= last; i += step) {
-      // In a fork, left-hand objects follow the left road (a) and right-hand ones the right road (b).
+      // In a fork, left-hand objects follow the left road (a) and right-hand ones the right road
+      // (b). Elsewhere everything is on road a: road b is only placed right inside a fork, and
+      // seen from within a fork it still carries that fork's bend beyond it.
       if (rule.side !== "right") segments[i].scenery.push({ kind: rule.kind, offset: -rule.offset, road: "a" });
-      if (rule.side !== "left") segments[i].scenery.push({ kind: rule.kind, offset: rule.offset, road: "b" });
+      if (rule.side !== "left") segments[i].scenery.push({ kind: rule.kind, offset: rule.offset, road: i >= forkFrom ? "b" : "a" });
     }
   }
   return { segments, commit, length: segments.length * SEGMENT_LENGTH };
