@@ -1,7 +1,10 @@
-import { BAND_SEGMENTS, SEGMENT_LENGTH } from "../sim/track";
+import { view } from "../game/camera";
 import { createProgram, FULLSCREEN_VERTEX, uniforms } from "./gl";
 import type { Palette } from "./palette";
 import { ROW_FLOATS } from "./roadTable";
+
+/** Lane dashes repeat every this many metres (a divisor of LOOP_MULTIPLE, so the loop seam is clean). */
+const DASH_PERIOD = 12;
 
 /**
  * Draws the road from the per-scanline table. The CPU decides where the road is on each
@@ -12,6 +15,7 @@ precision highp float;
 uniform sampler2D uRows;
 uniform float uHeight;
 uniform float uBand;        // metres per stripe band
+uniform float uDash;        // metres per lane-dash period
 uniform float uLanes;
 uniform vec3 uGrassLight, uGrassDark, uRoadLight, uRoadDark, uRumbleA, uRumbleB, uLine, uFog;
 out vec4 outColor;
@@ -51,8 +55,8 @@ void main() {
   // solid edge lines
   float lines = band(au, 0.925, 0.955, px);
   // dashed lane lines: painted for the first 40% of each dash period
-  float dashPhase = fract(dist / (uBand * 2.0) * 1.5);
-  float dw = perRow / (uBand * 2.0) * 1.5 * 0.5;
+  float dashPhase = fract(dist / uDash);
+  float dw = perRow / uDash * 0.5;
   float dash = band(dashPhase, 0.0, 0.4, dw);
   dash = mix(dash, 0.4, clamp((dw - 0.1) / 0.3, 0.0, 1.0));
   for (float i = 1.0; i < uLanes; i += 1.0) {
@@ -65,7 +69,7 @@ void main() {
 }`;
 
 const UNIFORMS = [
-  "uRows", "uHeight", "uBand", "uLanes",
+  "uRows", "uHeight", "uBand", "uDash", "uLanes",
   "uGrassLight", "uGrassDark", "uRoadLight", "uRoadDark", "uRumbleA", "uRumbleB", "uLine", "uFog",
 ] as const;
 
@@ -101,7 +105,8 @@ export class RoadRenderer {
     gl.useProgram(this.program);
     gl.uniform1i(this.u.uRows, 0);
     gl.uniform1f(this.u.uHeight, height);
-    gl.uniform1f(this.u.uBand, BAND_SEGMENTS * SEGMENT_LENGTH);
+    gl.uniform1f(this.u.uBand, view.stripeLength);
+    gl.uniform1f(this.u.uDash, DASH_PERIOD);
     gl.uniform1f(this.u.uLanes, lanes);
     gl.uniform3fv(this.u.uGrassLight, palette.grassLight);
     gl.uniform3fv(this.u.uGrassDark, palette.grassDark);

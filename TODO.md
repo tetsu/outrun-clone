@@ -8,7 +8,7 @@ Milestone numbers (M1–M11) refer to the milestones in `plan.md`.
 
 In this order; each one unblocks the next.
 
-1. [ ] **Decide the curve model (M2).** Either the arcade's per-scanline accumulation (lateral offset added row by row up the screen, which gives the original's characteristic bend) or the per-segment projection used now (geometrically exact, so scenery lines up, but bends look more even). The fork is built on top of this, so decide first. Build both behind a switch on the test course and compare.
+1. [x] **Decide the curve model (M2).** Decided: the arcade model (a bend adds a sideways offset accumulated row by row up the screen, as the 1980s hardware did), tuned in the feel loop ([docs/feel-loop.md](docs/feel-loop.md)). The projected model stays selectable in the tuning panel. The fork is built on the arcade model.
 2. [ ] **Road fork prototype (M2).** The road widens, then two roads diverge with correct overlap in the scanline table and the shader, and the player's position picks a branch. The hardest rendering problem in the plan.
 3. [ ] **Track editor (M2, M4).** In-browser editor for sections (length, curve, hill) and roadside scenery rules, with live preview. Saving to `src/data/stages/*.json` needs a dev-only write endpoint in `vite.config.ts` (a browser cannot write to the repository by itself).
 4. [ ] **Traffic and collisions (M5).** Tasks are under M5 below.
@@ -26,22 +26,24 @@ The original's quality comes less from detail in the art than from three things:
 
 ### 1. Sense of speed (the largest gap today)
 
-The speed figure is already 293 km/h; what is missing is how the screen sells it.
+The speed figure is already 293 km/h; what is missing is how the screen sells it. §1 and §2 are tuned in a measured loop: see [docs/feel-loop.md](docs/feel-loop.md) for how to run it and the log of what was changed and why.
 
-- [ ] **Tuning panel (suggested first step).** A dev-only panel that changes camera height, camera distance, field of view, scenery density and hill scale while the game runs, so the feel can be compared at once.
-- [ ] Roadside density and closeness: objects in an unbroken run right at the road edge. Speed is felt through the number of things passing; the test course is sparse.
-- [ ] Camera: try lower and closer than the current 2.0 m high, 6.5 m behind. Any change must be mirrored in `tools/blender/render_car.py` and the car sheet re-rendered.
-- [ ] Curve look: the way a bend swings harder towards the horizon comes from per-scanline accumulation (the curve model decision in "Next up").
-- [ ] Bolder hills: crests that hide the road ahead completely, and a horizon and background that move up and down clearly more than now.
+- [x] **Tuning panel.** F2 in the dev server: every view, course and handling value live, plus the feel report. F9 / F10 record and play back replays.
+- [ ] Roadside density and closeness: objects in an unbroken run right at the road edge. Passes its design target (10 objects/s at top speed) but still looks sparse; set it from the measured figure of the original.
+- [x] Camera lower and closer: 1.6 m high, 6.0 m behind (was 2.0 m, 6.5 m). Car and traffic sheets re-rendered to match.
+- [x] Curve look: arcade model (sideways offset accumulated up the screen), gain 1400; the projected model stays selectable. This settles the curve model decision in "Next up".
+- [x] Bolder hills: the camera pitches half-way with the road, so the horizon travels 0.13 screens over a lap; crests hide the road ahead (5 on the test course).
 
 ### 2. Handling
 
-- [ ] Tune the outward push in bends and how quickly the car answers when the wheel is returned.
-- [ ] Set the speed at which the tyres let go (skid state, M3).
-- [ ] Make dropping to LO gear for a bend a technique that pays off.
-- [ ] Off-road: slowdown plus shake (M3).
-- [ ] **Measurement sheet from a recording of the original** (legitimate copy): seconds to top speed, sideways shift of the road in the tightest bend, time per stage, roadside objects passed per second. These become the target numbers. Measuring feel copies no data.
-- [ ] Replay-driven comparison: the simulation is deterministic, so the same recorded input can be re-run after every tuning change (replay tests, M10 — pull the recorder forward for this).
+- [x] Outward push in bends and the response when the wheel is returned: tuned to targets (gentle bend flat-out at about half lock, medium at 0.9, the tightest held up to 248 km/h; sideways motion stops 0.2 s after letting go).
+- [x] Tyres let go at full lock above 217 km/h; sliding scrubs speed and swings the car's tail out in the sprite.
+- [x] Dropping to LO for a bend pays off: braking hard while turning hard locks the tyres and runs the car wide onto the verge, engine braking in LO does not (1.6 s gained in the late-entry test).
+- [x] Off-road: from top speed to 120 km/h in 2.8 s, and the view shakes.
+- [ ] **Measurement sheet from a recording of the original** (legitimate copy): seconds to top speed, sideways shift of the road in the tightest bend, time per stage, roadside objects passed per second. These replace the design ranges in `FEEL_TARGETS` (`src/dev/feel.ts`). Measuring feel copies no data.
+- [x] Replay recorder (F9 / F10) for comparing the same driving before and after a tuning change.
+- [ ] Re-check the brake lock-up by driving once traffic and roadside collisions exist: the LO gain jumps from 0.02 s to 1.6 s between grip loss 0.5 and 0.6, because leaving the road is the only time penalty so far.
+- [ ] Judge the feel by driving at 60 / 120 / 144 Hz with a gamepad; stills and numbers cannot show it.
 
 ### 3. Graphics
 
@@ -122,10 +124,10 @@ Half of the original's impression is its music.
 
 ### M3 — Player car and handling
 
-- [ ] Tune handling constants in `src/sim/player.ts` to "drivable and fun" (currently placeholder values; high-speed cornering pushes out hard). Matching the original is M9.
-- [ ] Skid state and tyre-squeal trigger.
+- [x] Tune handling constants in `src/sim/player.ts` to "drivable and fun": done in the feel loop against design targets. Matching the original is M9.
+- [x] Skid state (`PlayerState.skid`, 0..1): the trigger for the tyre squeal (M8) and tyre smoke.
 - [ ] Engine RPM model (feeds the tachometer and the engine sound).
-- [ ] Off-road dust and tyre-smoke sprites; bumpy camera off the road.
+- [ ] Off-road dust and tyre-smoke sprites. (The bumpy camera off the road is done.)
 
 ### M4 — Scenery
 
@@ -194,7 +196,7 @@ Half of the original's impression is its music.
 
 ### M10 — Test and ship (desktop web)
 
-- [ ] Replay-based regression tests (the simulation is already deterministic).
+- [ ] Replay-based regression tests (the recorder exists: `src/sim/replay.ts`; record reference drives and check where they end up).
 - [ ] Playwright smoke test.
 - [ ] Deploy to GitHub Pages or itch.io.
 
@@ -214,7 +216,7 @@ The current car and both characters are local stand-ins (not in git, never shipp
 - [ ] **Original car design (required before release; long lead, start now).** The stand-in Tripo model is a real production car. Design an original two-seat open sports car as a concept image, generate or commission the model, and run it through `tools/blender/prep_car.py`. See `plan.md` → Art.
 - [ ] **Per-car measurements in a data file.** Seat hip points and the steering wheel's centre, normal and radius are constants in `seat_person.py`, and `fix_car_materials.py` is written for the stand-in. Move the measurements to a JSON file next to each model so a new car does not mean editing scripts.
 - [ ] **CHIBA wordmark and M emblem.** Original lettering and emblem shape (not a rounded-square badge), applied to the new car.
-- [ ] **Sprite sheet size — do this before scenery and traffic art arrive.** The 65-frame sheet is 7776 × 4480: about 140 MB on the GPU (185 MB with mipmaps), and wider than the 4096-pixel texture limit of some integrated and mobile GPUs. The frames cannot be mirrored to halve them, because the driver sits on one side. Options: trim each frame to its content with the atlas packer, split into pages of 4096 or less, GPU texture compression, half-resolution sheets for mobile.
+- [ ] **Sprite sheet size — do this before scenery and traffic art arrive.** The 65-frame sheet is 7680 × 5328 since the camera moved closer: about 164 MB on the GPU (218 MB with mipmaps), and wider than the 4096-pixel texture limit of some integrated and mobile GPUs. The frames cannot be mirrored to halve them, because the driver sits on one side. Options: trim each frame to its content with the atlas packer, split into pages of 4096 or less, GPU texture compression, half-resolution sheets for mobile.
 - [ ] **Decide how the car is lit per time of day.** Five lights (sunrise → night) as five re-rendered sheets multiplies the memory above; a tint or palette step in the sprite shader costs nothing. Decide together with the style guide (M4).
 - [ ] Toon shader and outlines in the sprite render (planned style; sprites are currently rendered with realistic shading).
 

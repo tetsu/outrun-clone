@@ -33,7 +33,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 in_blend, out_dir = argv[0], os.path.abspath(argv[1])   # Blender resolves a relative path against the drive root
 os.makedirs(out_dir, exist_ok=True)
 
-CAMERA_DISTANCE = 6.5     # metres behind the car's centre; must match src/game/camera.ts
+CAMERA_DISTANCE = 6.0     # metres behind the car's centre; must match src/game/camera.ts
 
 YAWS = list(range(-24, 25, 4))       # 13 steering frames
 PITCHES = [-10, -5, 0, 5, 10]        # 5 slope frames

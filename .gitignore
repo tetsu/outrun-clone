@@ -12,3 +12,4 @@ local-assets/
 
 # Python bytecode from running the Blender scripts
 __pycache__/
+dev-snapshots/

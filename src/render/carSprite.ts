@@ -1,4 +1,4 @@
-import { CAMERA_DISTANCE, CAMERA_HEIGHT, VFOV_DEG } from "../game/camera";
+import { DEFAULT_VIEW } from "../game/camera";
 import { createTexture } from "./gl";
 import { createPlaceholderCar } from "./placeholders";
 
@@ -40,7 +40,7 @@ export function createPlaceholderCarSprite(gl: WebGL2RenderingContext): CarSprit
     principalX: frameWidth / 2,
     principalY: -60,
     referenceScreenHeight: 1440,
-    camera: { height: CAMERA_HEIGHT, distance: CAMERA_DISTANCE, vfovDeg: VFOV_DEG },
+    camera: { height: DEFAULT_VIEW.height, distance: DEFAULT_VIEW.distance, vfovDeg: DEFAULT_VIEW.vfovDeg },
   };
   const texture = createTexture(gl, createPlaceholderCar(frameWidth, frameHeight));
   return { texture, meta, sheetWidth: frameWidth, sheetHeight: frameHeight };
@@ -62,7 +62,7 @@ export async function loadRenderedCarSprite(gl: WebGL2RenderingContext): Promise
     if (!imageResponse.ok) return null;
     const bitmap = await createImageBitmap(await imageResponse.blob(), { premultiplyAlpha: "premultiply" });
     const c = meta.camera;
-    if (c.height !== CAMERA_HEIGHT || c.distance !== CAMERA_DISTANCE || c.vfovDeg !== VFOV_DEG) {
+    if (c.height !== DEFAULT_VIEW.height || c.distance !== DEFAULT_VIEW.distance || c.vfovDeg !== DEFAULT_VIEW.vfovDeg) {
       console.warn("car sprite sheet was rendered for a different camera; re-run tools/blender/render_car.py");
     }
     const sprite = { texture: createTexture(gl, bitmap), meta, sheetWidth: bitmap.width, sheetHeight: bitmap.height };

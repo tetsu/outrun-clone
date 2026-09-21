@@ -179,7 +179,8 @@ Built so far (a drivable base; roughly milestone 1, most of 2 and the start of 3
 
 - Vite and TypeScript project, fixed 120 Hz simulation with interpolated rendering and a frame-rate cap, WebGL2 canvas at native resolution with a resolution-scale setting.
 - Road renderer: per-scanline table on the CPU, anti-aliased shader on the GPU, curves, hills with crest clipping, rumble strips, edge and lane lines, distance haze, and a shader-drawn sky with sun, two hill ranges and far ground.
-- Player car: two gears, 293 km/h top speed, steering against centrifugal push, off-road slowdown, gravity on slopes. Tuning against the original is still milestone 9.
+- Player car: two gears (LO launches hard, HI is sluggish from low speed), 293 km/h top speed, steering with some weight against the centrifugal push, tyres that slide at high speed and lock when braking in a bend, off-road slowdown with a shaking view, gravity on slopes. Tuned against design targets; tuning against the original is still milestone 9.
+- Feel loop: every sense-of-speed and handling quality is measured headlessly against a target (`npm run feel`, and a test that fails on a miss), with a live tuning panel, replays and frame snapshots in the dev server. See [docs/feel-loop.md](docs/feel-loop.md).
 - Car sprites: `tools/blender/render_car.py` renders 13 steering angles (±24°) × 5 pitches (±10°) with the game's exact camera and packs a sprite sheet. The frame size is fitted to the car by projecting it for every attitude, so no frame is cut off. The game starts on a code-drawn placeholder car and swaps the sheet in when it loads.
 - Driver and passenger: Blender tools rig generated T-pose or A-pose characters (`rig_person.py`), pose them (`pose_person.py`) and seat them in the car (`seat_person.py`), with the driver's hands placed on the wheel by two-bone IK. In the sprite frames both sway towards the outside of a bend and lean against a slope.
 - Roadside scenery as clipped, hazed billboards, with code-drawn placeholder art (pine, palm, post, sign).
@@ -190,10 +191,12 @@ Decisions made while building:
 - **HUD text is DOM, not SDF text in WebGL.** It is sharp at any resolution, handles Japanese glyphs without a font atlas, and anchors to screen edges with CSS. It also works unchanged in a desktop wrapper. SDF text can replace it later if a fully in-canvas HUD is ever needed.
 - **Stand-in art lives in `local-assets/`, outside `public/`.** The dev server serves it at `/assets/local/`; a production build cannot include it. This keeps the stand-in car out of anything that ships.
 - **The game never waits on art to start.** Large images load through `createImageBitmap`, because `HTMLImageElement.decode()` can stall in a tab the browser is not painting.
+- **Bends use the arcade curve model.** A bend adds a sideways offset accumulated row by row up the screen, as the 1980s hardware did, so the road sweeps from just in front of the car. The geometrically exact projection stays selectable for comparison.
+- **Camera: 1.6 m high, 6.0 m behind the car, pitching half-way with the road.** Lower and closer than first built, for a faster-looking road; the horizon rises and falls with the hills.
 - **Generated characters are weighted by body region, not by Blender's automatic weights.** Bone-heat weighting fails on meshes made of many overlapping shells, which is what generated models are.
 
 Not built yet from milestones 1–2: the road fork, the track editor, a code licence and `ASSETS.md`.
 
 ## Next step
 
-Decide the curve model, then the road fork prototype (the hardest rendering problem), then the track editor, then traffic. The full task list is in [TODO.md](TODO.md).
+The road fork prototype (the hardest rendering problem), then the track editor, then traffic. The full task list is in [TODO.md](TODO.md).

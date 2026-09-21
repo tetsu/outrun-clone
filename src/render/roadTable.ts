@@ -1,4 +1,5 @@
 import { SEGMENT_LENGTH, type Segment, type Track } from "../sim/track";
+import type { CurveModel } from "../game/camera";
 
 /** Floats stored per screen row; two RGBA32F texels. */
 export const ROW_FLOATS = 8;
@@ -16,6 +17,14 @@ export interface ViewParams {
   x: number;
   y: number;
   drawDistance: number;
+  /** Screen row of the horizon; the middle of the screen when the camera is level. */
+  horizon?: number;
+  /** How bends are drawn (default "projected"). */
+  curveModel?: CurveModel;
+  /** Arcade model: screen heights of sweep per (1/m of curvature x screen height²). */
+  curveGain?: number;
+  /** Camera height above the road, for the arcade model's flat reference (default 2). */
+  eyeHeight?: number;
 }
 
 /** A segment's near edge on screen, kept for placing scenery. */
@@ -40,10 +49,24 @@ export interface ProjectedSegment {
  *
  * Segments are walked front to back. `clipY` is the highest row drawn so far; a segment
  * only fills rows above it, which is what hides road behind a crest.
+ *
+ * Bends are drawn one of two ways:
+ *  - "projected": the road is bent in the world and projected, so it is geometrically exact.
+ *    Near the car the road looks straight and the bend swings out towards the horizon.
+ *  - "arcade": the way the 1980s arcade hardware did it. The road is straight in the world,
+ *    and a bend adds a sideways offset that accumulates row by row up the screen, so the
+ *    road curves as a smooth arc from just in front of the car. Hills do not change the
+ *    arc: it is accumulated over where each segment would be on flat ground.
  */
 export function fillRoadTable(track: Track, view: ViewParams, rows: Float32Array): ProjectedSegment[] {
   const { width, height, focal } = view;
+  const horizon = view.horizon ?? height / 2;
+  const arcade = view.curveModel === "arcade";
+  const gain = view.curveGain ?? 1000;
+  const eye = view.eyeHeight ?? 2;
   rows.fill(0, 0, height * ROW_FLOATS);
+  // Arcade model: screen heights above the bottom edge where depth z meets flat ground.
+  const flatRise = (z: number): number => (z <= 0 ? 0 : Math.max(0, (height - horizon - (eye * focal) / z) / height));
 
   const segments = track.segments;
   const n = segments.length;
@@ -56,18 +79,44 @@ export function fillRoadTable(track: Track, view: ViewParams, rows: Float32Array
   // curvature k turns the heading by k*L, which moves the centre k*L*L further each segment.
   let offset = 0;
   let drift = -segments[((baseIndex % n) + n) % n].curve * SEGMENT_LENGTH * SEGMENT_LENGTH * basePercent;
+  // arcade model: sideways offset in screen heights, and its slope per screen height
+  let arcOffset = 0;
+  let arcSlope = 0;
   let clipY = height;
 
   for (let i = 0; i < count; i++) {
     const segment = segments[(((baseIndex + i) % n) + n) % n];
-    let z1 = (i - basePercent) * SEGMENT_LENGTH;
+    const z0 = (i - basePercent) * SEGMENT_LENGTH;
+    let z1 = z0;
     const z2 = z1 + SEGMENT_LENGTH;
     let x1 = offset;
-    const x2 = offset + drift;
+    let x2 = offset + drift;
     let y1 = segment.y1;
     const y2 = segment.y2;
     offset += drift;
     drift += segment.curve * SEGMENT_LENGTH * SEGMENT_LENGTH;
+
+    // Arcade model: the offset within this segment, in screen heights, at depth z. It is exact
+    // for every row, not interpolated between the segment's edges: near the car one segment can
+    // cover a fifth of the screen, and straight chords there would put a kink in the arc.
+    const k = segment.curve * gain;
+    const r0 = flatRise(z0);
+    const offset0 = arcOffset;
+    const slope0 = arcSlope;
+    const arcAt = (z: number): number => {
+      const d = flatRise(z) - r0;
+      return offset0 + slope0 * d + 0.5 * k * d * d;
+    };
+    let arc1 = 0;
+    let arc2 = 0;
+    if (arcade) {
+      arc1 = arcAt(Math.max(z0, NEAR));
+      arc2 = arcAt(z2);
+      arcSlope += k * (flatRise(z2) - r0);
+      arcOffset = arc2;
+      x1 = x2 = 0;
+    }
+
     if (z2 <= NEAR) continue;
     if (z1 < NEAR) {
       const t = (NEAR - z1) / (z2 - z1);
@@ -78,10 +127,10 @@ export function fillRoadTable(track: Track, view: ViewParams, rows: Float32Array
 
     const s1 = focal / z1;
     const s2 = focal / z2;
-    const sx1 = width / 2 + (x1 - view.x) * s1;
-    const sx2 = width / 2 + (x2 - view.x) * s2;
-    const sy1 = height / 2 - (y1 - view.y) * s1;
-    const sy2 = height / 2 - (y2 - view.y) * s2;
+    const sx1 = width / 2 + (x1 - view.x) * s1 + arc1 * height;
+    const sx2 = width / 2 + (x2 - view.x) * s2 + arc2 * height;
+    const sy1 = horizon - (y1 - view.y) * s1;
+    const sy2 = horizon - (y2 - view.y) * s2;
     const fog1 = fogAt(z1, view.drawDistance);
 
     projected.push({ segment, scale: s1, x: sx1, y: sy1, clipY, fog: fog1, depth: z1 });
@@ -101,7 +150,7 @@ export function fillRoadTable(track: Track, view: ViewParams, rows: Float32Array
       const invZ = invZ1 + (invZ2 - invZ1) * t;
       const z = 1 / invZ;
       const o = row * ROW_FLOATS;
-      rows[o] = sx1 + (sx2 - sx1) * t;
+      rows[o] = arcade ? width / 2 - view.x * focal * invZ + arcAt(z) * height : sx1 + (sx2 - sx1) * t;
       rows[o + 1] = track.halfWidth * focal * invZ;
       rows[o + 2] = startDistance + (z - z1);
       rows[o + 3] = 1;

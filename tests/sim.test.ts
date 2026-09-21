@@ -3,15 +3,16 @@ import { SIM_DT } from "../src/core/loop";
 import stageData from "../src/data/stages/test-course.json";
 import { focalLength } from "../src/game/camera";
 import { fillRoadTable, ROW_FLOATS } from "../src/render/roadTable";
-import { createPlayer, MAX_SPEED, stepPlayer } from "../src/sim/player";
-import { BAND_SEGMENTS, buildTrack, heightAt, SEGMENT_LENGTH, type StageData } from "../src/sim/track";
+import { createPlayer, MAX_SPEED, stepPlayer, type PlayerState } from "../src/sim/player";
+import { ReplayPlayer, ReplayRecorder, type Replay } from "../src/sim/replay";
+import { buildTrack, heightAt, LOOP_MULTIPLE, SEGMENT_LENGTH, type StageData } from "../src/sim/track";
 
 const track = buildTrack(stageData as StageData);
 const idle = { steer: 0, throttle: 0, brake: 0, gearToggle: false };
 
 describe("track", () => {
-  it("closes the loop: whole stripe pairs and level at the seam", () => {
-    expect(track.segments.length % (BAND_SEGMENTS * 2)).toBe(0);
+  it("closes the loop: a whole number of stripe repeats, and level at the seam", () => {
+    expect(track.length % LOOP_MULTIPLE).toBe(0);
     expect(track.segments[track.segments.length - 1].y2).toBeCloseTo(0, 6);
     expect(heightAt(track, 0)).toBe(0);
   });
@@ -86,6 +87,30 @@ describe("road table", () => {
     expect(rows[row * ROW_FLOATS + 1]).toBeCloseTo((6.5 * focal) / depth, 1);
   });
 
+  it("arcade curves: a straight road is drawn exactly as the projected model draws it", () => {
+    const flat = buildTrack({ name: "flat", halfWidth: 6.5, lanes: 3, sections: [{ length: 6000 }], scenery: [] });
+    const view = { width, height, focal: focalLength(height, 60), z: 100, x: 1.5, y: 2, drawDistance: 1200 };
+    const projected = new Float32Array(height * ROW_FLOATS);
+    fillRoadTable(flat, { ...view, curveModel: "projected" }, projected);
+    fillRoadTable(flat, { ...view, curveModel: "arcade", curveGain: 1400, eyeHeight: 2 }, rows);
+    expect(Array.from(rows)).toEqual(Array.from(projected));
+  });
+
+  it("arcade curves: a steady bend sweeps the road as a parabola up the screen", () => {
+    const k = 0.003;
+    const gain = 1400;
+    const bend = buildTrack({ name: "bend", halfWidth: 6.5, lanes: 3, sections: [{ length: 6000, curve: k }], scenery: [] });
+    const focal = focalLength(height, 60);
+    fillRoadTable(bend, { width, height, focal, z: 3000, x: 0, y: 2, drawDistance: 1200, curveModel: "arcade", curveGain: gain, eyeHeight: 2 }, rows);
+    const bottom = rows[(height - 1) * ROW_FLOATS];
+    for (const rise of [0.1, 0.25, 0.4]) {
+      const row = Math.round(height * (1 - rise)) - 1;
+      // offset in screen heights = gain * k * rise² / 2, measured from where the road leaves the screen
+      const expected = (0.5 * gain * k * rise * rise) * height;
+      expect(rows[row * ROW_FLOATS] - bottom).toBeCloseTo(expected, -1);
+    }
+  });
+
   it("returns segments nearest first with a clip row that only moves up", () => {
     const projected = fillRoadTable(
       track,
@@ -98,5 +123,28 @@ describe("road table", () => {
       expect(projected[i].clipY).toBeLessThanOrEqual(projected[i - 1].clipY);
     }
     expect(SEGMENT_LENGTH).toBeGreaterThan(0);
+  });
+});
+
+describe("replay", () => {
+  it("plays a drive back to exactly the same place", () => {
+    const drive = (input: (i: number) => typeof idle, steps: number, recorder?: ReplayRecorder): PlayerState => {
+      const p = createPlayer();
+      for (let i = 0; i < steps; i++) {
+        const state = input(i);
+        recorder?.record(state);
+        stepPlayer(p, state, track, SIM_DT);
+      }
+      return p;
+    };
+    const recorder = new ReplayRecorder(track.name, createPlayer());
+    const live = drive((i) => ({ steer: Math.round(Math.sin(i / 70) * 4) / 4, throttle: i % 400 < 350 ? 1 : 0, brake: 0, gearToggle: i === 500 }), 3000, recorder);
+    const replay = JSON.parse(JSON.stringify(recorder.finish())) as Replay;
+    expect(replay.runs.length).toBeLessThan(200);
+
+    const player = new ReplayPlayer(replay);
+    const p = { ...replay.start };
+    for (let input = player.next(); input; input = player.next()) stepPlayer(p, input, track, SIM_DT);
+    expect(p).toEqual(live);
   });
 });

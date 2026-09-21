@@ -12,7 +12,7 @@ import numpy as np
 from mathutils import Vector
 
 # Must match src/game/camera.ts.
-CAMERA_HEIGHT = 2.0       # metres above the road
+CAMERA_HEIGHT = 1.6       # metres above the road
 VFOV_DEG = 60.0
 REFERENCE_SCREEN_HEIGHT = 1440   # a frame is 1:1 on a screen this many pixels tall
 
