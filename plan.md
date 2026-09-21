@@ -53,7 +53,7 @@ src/
   core/      loop (fixed step), input (keyboard/gamepad/touch, rebindable), rng, asset loader,
              storage (settings and saves behind one interface), i18n (ja/en string tables)
   render/    WebGL2 context, road (scanline table + shader), sprite batcher, background parallax, palette,
-             HUD (edge-anchored layout, SDF font with Japanese glyphs)
+             HUD (DOM text over the canvas, edge-anchored)
   sim/       player physics, traffic AI, collision, stage progression, timer/score
   game/      state machine: title → music select → start → drive → goal/game over → name entry; options
   audio/     FM synth, engine sound, sfx, sequencer, streamed-music player
@@ -97,10 +97,10 @@ The art is high-resolution, not pixel art. Sprites are authored for 4K and mipma
 
 Recommended split:
 
-- **Cars: pre-rendered from 3D models.** Cars need many views of the same object. The player car needs about 5–7 steering angles (mirrored for the other side) × 3 pitches (uphill, flat, downhill), plus spin and crash frames. Each traffic vehicle needs 3–5 angles. Drawing those by hand at 4K, consistently, is the expensive part; a model renders them all, and re-renders them if the design, resolution or lighting changes.
+- **Cars: pre-rendered from 3D models.** Cars need many views of the same object. The player car needs 13 steering angles × 5 pitches (uphill to downhill), plus spin and crash frames. The angles cannot be mirrored to save half of them, because the driver sits on one side. Each traffic vehicle needs 3–5 angles. Drawing those by hand at 4K, consistently, is the expensive part; a model renders them all, and re-renders them if the design, resolution or lighting changes.
 - **Roadside scenery and backgrounds: drawn.** Trees, signs, buildings and landmarks always face the camera and need one image each, so drawing them directly is simpler and gives the most character.
 - **Where the 3D models come from.** Pre-rendering only needs a model that looks right from the camera angles used; clean topology, rigging and polygon count don't matter. That makes AI-generated models (Tripo and similar) usable here.
-  - **Render pipeline: scripted in this project.** Blender Python scripts import a model, apply the toon shader and outlines, set the camera and the per-time-of-day lighting, render every angle and pitch, and pack the frames into sprite sheets. Any model from any source goes through the same scripts. Blender must be installed first (it is not yet).
+  - **Render pipeline: scripted in this project.** Blender Python scripts import a model, apply the toon shader and outlines, set the camera and the per-time-of-day lighting, render every angle and pitch, and pack the frames into sprite sheets. Any model from any source goes through the same scripts. Blender is installed (5.2), and the scripts are in `tools/blender/`.
   - **Traffic vehicles: built by script.** Trucks, vans, buses and small boxy cars are simple enough to model procedurally in Blender Python, as original designs.
   - **Player car: Tripo, a purchased model or a modeller.** It is on screen for the whole game, and a smooth, attractive sports-car body is beyond what scripted modelling does well. Design an original car first (a concept image), then generate or commission the model from it. Do not feed in photos or drawings of real cars or of the original game's car. Use a plan whose terms allow commercial use, record the model in `ASSETS.md`, and include it in the Steam AI-content declaration.
 - **Player car identity: decided.** The model name is **CHIBA** and the emblem is an **M** (from the owner's surname, Mori). Both are drawn in their own original style, not in the lettering or emblem shape of any real maker, and go on an original car body. The Tripo model currently in `art/models/player-car/` reproduces a real production car and is a local test stand-in only; its badges have been removed and it never ships.
@@ -160,7 +160,7 @@ Decisions for the owner:
 
 - **Title: decided — Boso Run.** Still to do before a public build: check that the name is free as a trademark and on Steam, design an original logo, and keep the repo name `outrun-clone` out of the shipped game (renaming the repo to `boso-run` is the simplest way).
 - **Setting: decided — the Bōsō Peninsula.** The stage tree in "Stages" is a first proposal; areas and landmarks can be swapped freely.
-- **Art production: open.** The direction is decided (see "Art"). Still open is whether to follow the recommended split (cars pre-rendered from 3D models, scenery drawn) and who makes the art. This sets the sprite pipeline in milestone 4.
+- **Art production: partly decided.** Cars and characters are pre-rendered in Blender from generated models (the pipeline is built, see "Status"). Still open: who draws the scenery, backgrounds and endings, and the original design of the player car.
 - **Music: decided in outline.** Suno and/or FM-sequenced tracks, chosen after the trial in milestone 8 (see "Music").
 - **Platform scope: decided.** Desktop browsers first, mobile later (milestone 11), Steam after that.
 - **Languages: decided.** Japanese and English, from milestone 1.
@@ -180,7 +180,8 @@ Built so far (a drivable base; roughly milestone 1, most of 2 and the start of 3
 - Vite and TypeScript project, fixed 120 Hz simulation with interpolated rendering and a frame-rate cap, WebGL2 canvas at native resolution with a resolution-scale setting.
 - Road renderer: per-scanline table on the CPU, anti-aliased shader on the GPU, curves, hills with crest clipping, rumble strips, edge and lane lines, distance haze, and a shader-drawn sky with sun, two hill ranges and far ground.
 - Player car: two gears, 293 km/h top speed, steering against centrifugal push, off-road slowdown, gravity on slopes. Tuning against the original is still milestone 9.
-- Car sprites: `tools/blender/render_car.py` renders 9 steering angles × 3 pitches with the game's exact camera and packs a sprite sheet. The game starts on a code-drawn placeholder car and swaps the sheet in when it loads.
+- Car sprites: `tools/blender/render_car.py` renders 13 steering angles (±24°) × 5 pitches (±10°) with the game's exact camera and packs a sprite sheet. The frame size is fitted to the car by projecting it for every attitude, so no frame is cut off. The game starts on a code-drawn placeholder car and swaps the sheet in when it loads.
+- Driver and passenger: Blender tools rig generated T-pose or A-pose characters (`rig_person.py`), pose them (`pose_person.py`) and seat them in the car (`seat_person.py`), with the driver's hands placed on the wheel by two-bone IK. In the sprite frames both sway towards the outside of a bend and lean against a slope.
 - Roadside scenery as clipped, hazed billboards, with code-drawn placeholder art (pine, palm, post, sign).
 - Japanese and English string tables, settings and saves behind a storage interface, an options panel (language, frame rate, resolution), keyboard and gamepad input, unit tests, and a GitHub Actions workflow.
 
@@ -189,9 +190,10 @@ Decisions made while building:
 - **HUD text is DOM, not SDF text in WebGL.** It is sharp at any resolution, handles Japanese glyphs without a font atlas, and anchors to screen edges with CSS. It also works unchanged in a desktop wrapper. SDF text can replace it later if a fully in-canvas HUD is ever needed.
 - **Stand-in art lives in `local-assets/`, outside `public/`.** The dev server serves it at `/assets/local/`; a production build cannot include it. This keeps the stand-in car out of anything that ships.
 - **The game never waits on art to start.** Large images load through `createImageBitmap`, because `HTMLImageElement.decode()` can stall in a tab the browser is not painting.
+- **Generated characters are weighted by body region, not by Blender's automatic weights.** Bone-heat weighting fails on meshes made of many overlapping shells, which is what generated models are.
 
 Not built yet from milestones 1–2: the road fork, the track editor, a code licence and `ASSETS.md`.
 
 ## Next step
 
-The road fork prototype (the hardest rendering problem), then the track editor, then traffic.
+Decide the curve model, then the road fork prototype (the hardest rendering problem), then the track editor, then traffic. The full task list is in [TODO.md](TODO.md).
