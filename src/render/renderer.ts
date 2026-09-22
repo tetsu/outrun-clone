@@ -272,8 +272,8 @@ export class Renderer {
     const { width, focal } = camera;
     // The driver sits on the left and is thrown that way; each lands a different distance ahead.
     const people: Array<[row: number, side: number, ahead: number]> = [
-      [m.rows.indexOf("passenger"), 1, 10],
-      [m.rows.indexOf("driver"), -1, 7],
+      [m.rows.indexOf("passenger"), 1, 5],
+      [m.rows.indexOf("driver"), -1, 3.5],
     ];
     const cameraY = roadHeight(game.track, camera.z) + view.height;
     for (const [row, side, ahead] of people) {
@@ -286,12 +286,17 @@ export class Renderer {
       // they sit facing the camera, turned a little towards it
       const yawIndex = nearestAngle(m.yaws, (-Math.atan(p.x / depth) * 180) / Math.PI);
       const f = frameRect(sheet, row * m.columns + yawIndex);
-      const k = scale / m.pixelsPerMetre;
-      this.sprites.quad(x - m.anchorX * k, y - m.anchorY * k, m.frameWidth * k, m.frameHeight * k, f.u0, f.v0, f.u1, f.v1, NO_CLIP, 0, 1);
+      const k = (scale * PEOPLE_SCALE) / m.pixelsPerMetre;
+      // tumbling about the middle of the body rather than the hips
+      const turn = { angle: p.spin, x, y: y - 0.4 * scale * PEOPLE_SCALE };
+      this.sprites.quad(x - m.anchorX * k, y - m.anchorY * k, m.frameWidth * k, m.frameHeight * k, f.u0, f.v0, f.u1, f.v1, NO_CLIP, 0, 1, turn);
     }
     this.sprites.flush(sheet.texture, camera.width, camera.height, this.palette.fog, this.palette.tint);
   }
 }
+
+/** The occupants are drawn larger than life, as the arcade did, so the crash reads at a glance. */
+const PEOPLE_SCALE = 1.4;
 
 function paletteFor(light: string | undefined): Palette {
   return PALETTES[(light ?? DEFAULT_LIGHT) as keyof typeof PALETTES] ?? PALETTES[DEFAULT_LIGHT];

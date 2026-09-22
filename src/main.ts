@@ -53,7 +53,7 @@ async function main(): Promise<void> {
   const flow = new Flow(game, storage);
   const screens = new Screens(document.getElementById("screens")!);
   const audio = new AudioSystem();
-  audio.setLevels(settings.musicVolume, settings.effectsVolume);
+  audio.setLevels(settings);
   const sound = new SoundDirector(audio);
 
   // Render at the display's native pixel size, times the resolution-scale setting.
@@ -87,21 +87,34 @@ async function main(): Promise<void> {
     },
   });
 
-  const options = new OptionsPanel(document.getElementById("overlay")!, settings, () => {
+  let language = settings.language;
+  const options = new OptionsPanel(document.getElementById("overlay")!, settings, (key) => {
     saveSettings(storage, settings);
-    setLanguage(settings.language);
     loop.fpsCap = settings.fpsCap;
     resize();
-    hud.refreshLabels();
-    screens.refresh();
-    audio.setLevels(settings.musicVolume, settings.effectsVolume);
-    options.build();
+    audio.setLevels(settings);
+    // hear a level as it moves
+    if (key === "masterVolume" || key === "effectsVolume") sound.previewEffects();
+    if (key === "musicVolume") sound.previewMusic(flow.music);
+    if (settings.language !== language) {
+      language = settings.language;
+      setLanguage(language);
+      hud.refreshLabels();
+      screens.refresh();
+      options.build();
+    }
   });
   input.onMenu = () => options.toggle();
   // browsers allow sound only after a user gesture: the first key press is it
   input.onPress = (action) => {
     audio.unlock();
-    if (!options.isOpen) flow.press(action);
+    if (action === "mute") {
+      settings.muted = !settings.muted;
+      saveSettings(storage, settings);
+      audio.setLevels(settings);
+      options.build();
+    } else if (options.isOpen) options.press(action);
+    else flow.press(action);
   };
 
   loop.fpsCap = settings.fpsCap;

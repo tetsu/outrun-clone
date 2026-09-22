@@ -101,18 +101,24 @@ export function rollPose(time: number, dir: number): { roll: number; lift: numbe
 }
 
 /**
- * Where an occupant is during a roll-over, relative to the car: thrown out from the seat,
- * flying ahead and to their side, then sitting on the road. Metres: sideways, ahead, up.
+ * Where an occupant is during a roll-over, relative to the car: thrown up out of the seat as the
+ * car lifts, tumbling head over heels once through the air, landing on the road just ahead and to
+ * their side with a small bounce, then sitting there dazed. Metres: sideways, ahead, up (of the
+ * hips); `spin` is the tumble in radians, clockwise on screen (0 = upright).
  */
-export function thrownPerson(time: number, side: number, ahead: number): { x: number; z: number; y: number; sitting: boolean } {
-  const from = 0.05;
-  const land = 1.05;
-  if (time < from) return { x: side * 0.4, z: 0, y: 0.9, sitting: false };
+export function thrownPerson(time: number, side: number, ahead: number): { x: number; z: number; y: number; spin: number } {
+  const from = 0.12;
+  const land = 1.1;
+  const seat = 0.9 + rollPose(from, 1).lift;
+  if (time < from) return { x: side * 0.4, z: 0, y: 0.9 + rollPose(time, 1).lift, spin: 0 };
   const t = Math.min(1, (time - from) / (land - from));
+  const after = time - land;
+  const bounce = after > 0 && after < 0.3 ? 0.22 * Math.sin((Math.PI * after) / 0.3) : 0;
   return {
-    x: side * (0.4 + 2.8 * t),
+    x: side * (0.4 + 2.3 * easeOut(t)),
     z: ahead * easeOut(t),
-    y: t < 1 ? 0.9 * (1 - t) + 3.2 * 4 * t * (1 - t) : 0,
-    sitting: t >= 1,
+    y: t < 1 ? seat * (1 - t) + 3.0 * 4 * t * (1 - t) : bounce,
+    // each tumbles away from the car: the driver (on the left) turns anticlockwise
+    spin: side * 2 * Math.PI * easeOut(t),
   };
 }

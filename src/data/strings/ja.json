@@ -14,6 +14,7 @@
   "title.tagline": "房総半島を駆け抜けろ",
   "title.press": "PRESS START",
   "title.hint": "Enter キー、またはゲームパッドの Start ボタン",
+  "title.options": "Esc  オプション（音量・言語など）",
   "title.demo": "DEMO",
   "title.scores": "HIGH SCORES",
   "countdown.go": "GO!",
@@ -27,9 +28,13 @@
   "options.fps": "フレームレート",
   "options.fps.display": "モニターに合わせる",
   "options.resolution": "解像度",
+  "options.sound": "サウンド",
+  "options.master": "全体の音量",
   "options.music": "音楽",
   "options.effects": "効果音",
-  "options.help": "ハンドル: ← → または A D   アクセル: ↑ または W   ブレーキ: ↓ または S\nギア: スペース   スタート: Enter   オプション: Esc   ゲームパッドにも対応しています。",
+  "options.mute": "ミュート（M キー）",
+  "options.help": "ハンドル: ← → または A D   アクセル: ↑ または W   ブレーキ: ↓ または S\nギア: スペース   スタート: Enter   オプション: Esc   ミュート: M   ゲームパッドにも対応しています。",
   "music.title": "SELECT MUSIC",
-  "music.hint": "← →  選ぶ     Enter  スタート"
+  "music.hint": "← →  選ぶ     Enter  スタート",
+  "options.nav": "↑ ↓ で選ぶ   ← → で変える   Esc で閉じる"
 }

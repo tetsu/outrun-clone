@@ -14,6 +14,7 @@
   "title.tagline": "A run down the Bōsō Peninsula",
   "title.press": "PRESS START",
   "title.hint": "Enter key, or the Start button on a gamepad",
+  "title.options": "Esc  Options (volume, language and more)",
   "title.demo": "DEMO",
   "title.scores": "HIGH SCORES",
   "countdown.go": "GO!",
@@ -27,9 +28,13 @@
   "options.fps": "Frame rate",
   "options.fps.display": "Match display",
   "options.resolution": "Resolution",
+  "options.sound": "Sound",
+  "options.master": "Master volume",
   "options.music": "Music",
   "options.effects": "Sound effects",
-  "options.help": "Steer: ← → or A D   Accelerate: ↑ or W   Brake: ↓ or S\nGear: Space   Start: Enter   Options: Esc   Gamepads are supported.",
+  "options.mute": "Mute (M key)",
+  "options.help": "Steer: ← → or A D   Accelerate: ↑ or W   Brake: ↓ or S\nGear: Space   Start: Enter   Options: Esc   Mute: M   Gamepads are supported.",
   "music.title": "SELECT MUSIC",
-  "music.hint": "← →  choose     Enter  start"
+  "music.hint": "← →  choose     Enter  start",
+  "options.nav": "↑ ↓ choose   ← → change   Esc close"
 }

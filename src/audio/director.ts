@@ -8,6 +8,8 @@ import { Sequencer } from "./sequencer";
 
 /** The clock lifts the music's tempo under this many seconds left. */
 const HURRY_UNDER = 10;
+/** Moving the music level where no music plays (the title) plays the chosen track this long. */
+const MUSIC_PREVIEW = 6;
 
 /**
  * Turns the game's state into sound every frame: the engine and the continuous effects from
@@ -20,6 +22,8 @@ export class SoundDirector {
   private lastScreen: Flow["screen"] | null = null;
   private lastCount = 0;
   private musicPlaying = -1;
+  /** Audio-clock time until which a level preview keeps the music going on the title. */
+  private previewUntil = 0;
 
   constructor(private readonly audio: AudioSystem) {
     this.sequencer = new Sequencer(audio);
@@ -67,9 +71,21 @@ export class SoundDirector {
       const run = state.run;
       this.sequencer.rate = run && run.phase === "driving" && run.timeLeft < HURRY_UNDER ? 1.1 : 1;
     } else if (flow.screen === "title" || flow.screen === "attract") {
-      this.stopMusic();
+      if (this.audio.context!.currentTime > this.previewUntil) this.stopMusic();
     }
     this.lastScreen = flow.screen;
+  }
+
+  /** A beep at the effects level, for moving that level in the options. */
+  previewEffects(): void {
+    if (this.audio.ready) (this.sounds ??= new EffectsAndEngine(this.audio)).effects.beep(false);
+  }
+
+  /** The chosen driving track for a few seconds, for moving the music level where none plays. */
+  previewMusic(index: number): void {
+    if (!this.audio.ready) return;
+    this.previewUntil = this.audio.context!.currentTime + MUSIC_PREVIEW;
+    if (this.musicPlaying !== index && !this.sequencer.playing) this.play(DRIVING_SONGS[index], index);
   }
 
   private play(song: typeof RESULTS_SONG, index = -1): void {

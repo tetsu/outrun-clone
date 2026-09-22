@@ -65,11 +65,21 @@ export class SpriteBatch {
     x: number, y: number, w: number, h: number,
     u0: number, v0: number, u1: number, v1: number,
     clipRow: number, fog: number, alpha: number,
+    turn?: { angle: number; x: number; y: number },
   ): void {
     if (this.count >= MAX_QUADS) return;
     const d = this.data;
     let o = this.count * 6 * FLOATS_PER_VERTEX;
+    // `turn`: the quad turned `angle` radians (clockwise on screen) about the point x, y
+    const cos = turn ? Math.cos(turn.angle) : 1;
+    const sin = turn ? Math.sin(turn.angle) : 0;
     const put = (px: number, py: number, pu: number, pv: number): void => {
+      if (turn) {
+        const dx = px - turn.x;
+        const dy = py - turn.y;
+        px = turn.x + dx * cos - dy * sin;
+        py = turn.y + dx * sin + dy * cos;
+      }
       d[o++] = px; d[o++] = py; d[o++] = pu; d[o++] = pv; d[o++] = clipRow; d[o++] = fog; d[o++] = alpha;
     };
     put(x, y, u0, v0); put(x + w, y, u1, v0); put(x, y + h, u0, v1);

@@ -3,8 +3,8 @@ import { SIM_DT } from "../core/loop";
 import { focalLength, view } from "../game/camera";
 import { fillRoadTable, ROW_FLOATS } from "../render/roadTable";
 import { placeCamera } from "../render/view";
-import { createPlayer, handling, LOW_GEAR_MAX, MAX_SPEED, steerAuthority, stepPlayer, type PlayerState } from "../sim/player";
-import { buildTrack, course, segmentAt, type StageData, type Track } from "../sim/track";
+import { bendPush, createPlayer, handling, LOW_GEAR_MAX, MAX_SPEED, steerAuthority, stepPlayer, type PlayerState } from "../sim/player";
+import { buildTrack, course, type StageData, type Track } from "../sim/track";
 
 /**
  * The feel report: every "sense of speed" and "handling" quality, measured as a number on the
@@ -87,7 +87,7 @@ function flatTrack(sections: StageData["sections"]): Track {
 
 /** Steering that holds a line: what the bend needs, plus a correction towards `targetX`. */
 function holdLine(p: PlayerState, track: Track, targetX = 0): number {
-  const curve = segmentAt(track, p.z).curve;
+  const curve = bendPush(track, p.z, p.x);
   const authority = Math.max(0.05, steerAuthority(p.speed)) * handling.steerSpeed;
   const feedForward = (curve * p.speed * p.speed * handling.centrifugal) / authority;
   return clamp(feedForward + 0.35 * (targetX - p.x) - 0.12 * p.vx, -1, 1);
@@ -160,8 +160,8 @@ function tightLimit(): number {
 }
 
 /**
- * A tight bend taken three ways, from top speed and reacting only once the bend is at full
- * curvature (the late entry: a bend found beyond a blind crest): flat-out, braking down to
+ * A tight bend taken three ways, from top speed and reacting only once the bend pushes in
+ * full (the late entry: a bend found beyond a blind crest): flat-out, braking down to
  * `hold`, or dropping to LO until `hold` and back to HI.
  */
 function throughTightBend(policy: "flat" | "brake" | "low", hold: number): { time: number; offroad: number } {
@@ -169,8 +169,9 @@ function throughTightBend(policy: "flat" | "brake" | "low", hold: number): { tim
   const bendEnd = 1020;
   const finish = 1500;
   const track = flatTrack([{ length: bendStart }, { length: bendEnd - bendStart, curve: TIGHT_CURVE }, { length: 900 }]);
-  // the section eases its curvature in over its first quarter (see buildTrack)
-  const react = bendStart + (bendEnd - bendStart) / 4;
+  // the section eases its curvature in over its first quarter (see buildTrack), and the push
+  // builds pushDelay metres behind that
+  const react = bendStart + (bendEnd - bendStart) / 4 + handling.pushDelay;
   const p: PlayerState = { ...createPlayer(), z: 150, speed: MAX_SPEED, gear: 1 };
   let downshifted = false;
   let time = 0;

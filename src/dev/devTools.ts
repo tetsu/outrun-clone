@@ -45,7 +45,7 @@ const HANDLING_SLIDERS: Slider[] = [
   ["highPeakAt", 0.1, 1, 0.05], ["gearFade", 0, 0.95, 0.05], ["gearFadePower", 1, 6, 0.5],
   ["brake", 5, 40, 0.5], ["coast", 0, 8, 0.1], ["overRevDrag", 0, 30, 0.5], ["offroadDrag", 0, 40, 0.5],
   ["steerSpeed", 4, 25, 0.25], ["steerResponse", 1, 20, 0.5], ["steerReturn", 1, 30, 0.5],
-  ["lateralResponse", 2, 60, 1], ["centrifugal", 0, 2, 0.01], ["skidLoad", 0.1, 1.5, 0.01],
+  ["lateralResponse", 2, 60, 1], ["centrifugal", 0, 2, 0.01], ["pushDelay", 0, 120, 5], ["skidLoad", 0.1, 1.5, 0.01],
   ["skidGripLoss", 0, 1, 0.05], ["skidScrub", 0, 20, 0.5], ["brakeGripLoss", 0, 1, 0.05], ["offroadGrip", 0, 1, 0.05],
 ];
 

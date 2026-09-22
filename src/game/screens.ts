@@ -56,6 +56,7 @@ export class Screens {
         el("screen-press blink", t("title.press"));
         el("screen-hint", t("title.hint"));
         panel.append(scoreTable(flow));
+        el("screen-hint", t("title.options"));
         break;
       }
       case "attract":

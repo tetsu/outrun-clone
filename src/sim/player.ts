@@ -36,6 +36,10 @@ export interface HandlingTuning {
   lateralResponse: number;
   /** How hard a bend pushes the car outwards: sideways speed = curvature * speed² * this. */
   centrifugal: number;
+  /** Metres into a bend before its push is felt in full: the push follows the lesser of the
+   *  curvature under the car and this far back, so it builds only once the car is in the bend,
+   *  and still lets go as soon as the bend eases off. */
+  pushDelay: number;
   /** Tyre load (lock x speed²) above which the tyres start to slide. Above 1: never. */
   skidLoad: number;
   /** Share of steering grip lost at full slide. */
@@ -63,6 +67,7 @@ export const DEFAULT_HANDLING: Readonly<HandlingTuning> = {
   steerReturn: 12.0,
   lateralResponse: 14,
   centrifugal: 0.833,
+  pushDelay: 45,
   skidLoad: 0.52,
   skidGripLoss: 0,
   skidScrub: 5.0,
@@ -119,6 +124,14 @@ export function gearPull(gear: 0 | 1, speed: number, h: HandlingTuning = handlin
   return base * (1 - h.gearFade * Math.pow(r, h.gearFadePower));
 }
 
+/** The curvature that pushes the car outwards at z: see HandlingTuning.pushDelay. */
+export function bendPush(track: Track, z: number, x: number): number {
+  const here = roadUnder(track, z, x).curve;
+  const behind = roadUnder(track, z - handling.pushDelay, x).curve;
+  if (Math.sign(here) !== Math.sign(behind)) return 0;
+  return Math.abs(here) < Math.abs(behind) ? here : behind;
+}
+
 export function stepPlayer(p: PlayerState, input: InputState, track: Track, dt: number): void {
   const h = handling;
   p.ghost = Math.max(0, p.ghost - dt);
@@ -160,7 +173,7 @@ export function stepPlayer(p: PlayerState, input: InputState, track: Track, dt: 
 
   // lateral: steering against the push of the bend
   const grip = (p.offroad ? h.offroadGrip : 1) * (1 - h.skidGripLoss * p.skid) * (1 - h.brakeGripLoss * locking);
-  const target = p.steer * h.steerSpeed * steerAuthority(p.speed) * grip - road.curve * p.speed * p.speed * h.centrifugal;
+  const target = p.steer * h.steerSpeed * steerAuthority(p.speed) * grip - bendPush(track, p.z, p.x) * p.speed * p.speed * h.centrifugal;
   p.vx += (target - p.vx) * Math.min(1, h.lateralResponse * dt);
   p.x += p.vx * dt;
   const limit = track.halfWidth * 2.2;

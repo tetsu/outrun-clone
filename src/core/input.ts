@@ -7,7 +7,7 @@ export interface InputState {
   gearToggle: boolean;
 }
 
-export type Action = "left" | "right" | "throttle" | "brake" | "gear" | "start" | "menu";
+export type Action = "left" | "right" | "throttle" | "brake" | "gear" | "start" | "menu" | "mute";
 
 /** Default bindings; rebinding replaces this table through the settings later. */
 const DEFAULT_KEYS: Record<string, Action> = {
@@ -23,10 +23,11 @@ const DEFAULT_KEYS: Record<string, Action> = {
   ShiftLeft: "gear",
   Enter: "start",
   Escape: "menu",
+  KeyM: "mute",
 };
 
 /** Standard gamepad buttons. */
-const PAD = { a: 0, b: 1, x: 2, rb: 5, lt: 6, rt: 7, back: 8, start: 9, left: 14, right: 15 } as const;
+const PAD = { a: 0, b: 1, x: 2, rb: 5, lt: 6, rt: 7, back: 8, start: 9, up: 12, down: 13, left: 14, right: 15 } as const;
 
 const STICK_DEADZONE = 0.12;
 
@@ -78,8 +79,9 @@ export class Input {
       const down = (...buttons: number[]): boolean => buttons.some((b) => pad.buttons[b]?.pressed);
       const now: Array<[Action, boolean]> = [
         ["left", down(PAD.left) || x < -0.5], ["right", down(PAD.right) || x > 0.5],
-        ["throttle", down(PAD.a) || (pad.buttons[PAD.rt]?.value ?? 0) > 0.5],
-        ["brake", down(PAD.x) || (pad.buttons[PAD.lt]?.value ?? 0) > 0.5],
+        // the d-pad's up and down only press (for the menus); they do not drive
+        ["throttle", down(PAD.a, PAD.up) || (pad.buttons[PAD.rt]?.value ?? 0) > 0.5],
+        ["brake", down(PAD.x, PAD.down) || (pad.buttons[PAD.lt]?.value ?? 0) > 0.5],
         ["gear", down(PAD.b, PAD.rb)], ["start", down(PAD.start)], ["menu", down(PAD.back)],
       ];
       for (const [action, held] of now) {

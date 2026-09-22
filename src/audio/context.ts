@@ -8,6 +8,7 @@ export class AudioSystem {
   master: GainNode | null = null;
   music: GainNode | null = null;
   effects: GainNode | null = null;
+  private masterLevel = 1;
   private musicLevel = 1;
   private effectsLevel = 1;
 
@@ -31,7 +32,7 @@ export class AudioSystem {
       limiter.release.value = 0.2;
       limiter.connect(this.context.destination);
       this.master = this.context.createGain();
-      this.master.gain.value = 0.8;
+      this.master.gain.value = this.masterLevel;
       this.master.connect(limiter);
       this.music = this.context.createGain();
       this.music.gain.value = this.musicLevel;
@@ -43,11 +44,19 @@ export class AudioSystem {
     if (this.context.state !== "running") void this.context.resume();
   }
 
-  setLevels(music: number, effects: number): void {
-    this.musicLevel = music;
-    this.effectsLevel = effects;
-    if (this.music) this.music.gain.value = music;
-    if (this.effects) this.effects.gain.value = effects;
+  /** The levels from the options (0..1 each); muted silences everything. */
+  setLevels(levels: { masterVolume: number; musicVolume: number; effectsVolume: number; muted: boolean }): void {
+    // full volume in the options leaves headroom under the limiter
+    this.masterLevel = levels.muted ? 0 : 0.8 * levels.masterVolume;
+    this.musicLevel = levels.musicVolume;
+    this.effectsLevel = levels.effectsVolume;
+    const set = (node: GainNode | null, value: number): void => {
+      // a short glide, so moving a slider does not click
+      if (node && this.context) node.gain.setTargetAtTime(value, this.context.currentTime, 0.02);
+    };
+    set(this.master, this.masterLevel);
+    set(this.music, this.musicLevel);
+    set(this.effects, this.effectsLevel);
   }
 
   /** A looping buffer of white noise, the raw material of tyres, wind and crashes. */
