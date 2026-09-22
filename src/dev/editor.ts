@@ -1,5 +1,7 @@
 import type { SaveStorage } from "../core/storage";
+import type { Flow } from "../game/flow";
 import type { Game } from "../game/game";
+import { DEFAULT_LIGHT, LIGHTS } from "../render/palette";
 import { SCENERY_KINDS } from "../render/placeholders";
 import type { Stages } from "../sim/route";
 import { DEFAULT_STAGE_TIME } from "../sim/run";
@@ -27,12 +29,18 @@ interface EditorState {
 
 interface EditorContext {
   game: Game;
+  flow: Flow;
   stages: Stages;
   storage: SaveStorage;
 }
 
 export function installEditor(ctx: EditorContext): void {
-  const { game, stages, storage } = ctx;
+  const { game, flow, stages, storage } = ctx;
+  // the editor previews by restarting the route; that is driving, not the title screen
+  const restart = (stage: string, z = 0): void => {
+    game.restartRoute(stage, z);
+    flow.play();
+  };
   const saved = storage.read<EditorState>(STATE_KEY, { open: false, stage: "", section: 0 });
   const names = (): string[] => Object.keys(stages).sort();
   let current = stages[saved.stage] ? saved.stage : game.route?.placed[0]?.id ?? names()[0];
@@ -61,7 +69,7 @@ export function installEditor(ctx: EditorContext): void {
     pending = window.setTimeout(() => {
       const at = game.route?.stageAt(game.player.z);
       const z = at && at.id === current ? game.player.z - at.start : sectionStart(draft, selected);
-      game.restartRoute(current, z);
+      restart(current, z);
       drawMap();
       showStatus();
     }, 120);
@@ -89,7 +97,7 @@ export function installEditor(ctx: EditorContext): void {
       draft = structuredClone(original);
       selected = 0;
       dirty = false;
-      game.restartRoute(current, 0);
+      restart(current, 0);
       remember();
       build();
     });
@@ -105,7 +113,7 @@ export function installEditor(ctx: EditorContext): void {
         draft = structuredClone({ ...draft, name, fork: undefined, next: undefined });
         stages[name] = original = draft;
         dirty = true;
-        game.restartRoute(current, 0);
+        restart(current, 0);
         remember();
         build();
       }),
@@ -121,6 +129,7 @@ export function installEditor(ctx: EditorContext): void {
       field("halfWidth", draft.halfWidth, "number", (v) => ((draft.halfWidth = Number(v)), preview())),
       field("lanes", draft.lanes, "number", (v) => ((draft.lanes = Math.max(1, Math.round(Number(v)))), preview())),
       field("time (s)", draft.time ?? DEFAULT_STAGE_TIME, "number", (v) => ((draft.time = Number(v) || undefined), preview())),
+      labelled("light", select(LIGHTS, draft.light ?? DEFAULT_LIGHT, (v) => ((draft.light = v === DEFAULT_LIGHT ? undefined : v), preview()))),
     );
     const others = ["", ...names().filter((n) => n !== current)];
     panel.append(labelled("next", select(others, draft.next ?? "", (v) => {
@@ -191,7 +200,7 @@ export function installEditor(ctx: EditorContext): void {
       button("go", () => {
         selected = i;
         remember();
-        game.restartRoute(current, sectionStart(draft, i));
+        restart(current, sectionStart(draft, i));
         build();
       }),
       button("↑", () => move(draft.sections, i, -1)),
@@ -384,7 +393,7 @@ export function installEditor(ctx: EditorContext): void {
         }
       });
     }
-    game.restartRoute(current, i * SEGMENT_LENGTH);
+    restart(current, i * SEGMENT_LENGTH);
     drawMap();
   });
 
@@ -401,7 +410,7 @@ export function installEditor(ctx: EditorContext): void {
   }, 500);
 
   if (!panel.hidden) {
-    game.restartRoute(current, sectionStart(draft, selected));
+    restart(current, sectionStart(draft, selected));
     build();
   }
 }
@@ -432,6 +441,7 @@ export function formatStage(stage: StageData): string {
     `  "halfWidth": ${stage.halfWidth}`,
     `  "lanes": ${stage.lanes}`,
     ...(stage.time !== undefined ? [`  "time": ${stage.time}`] : []),
+    ...(stage.light !== undefined ? [`  "light": ${JSON.stringify(stage.light)}`] : []),
     `  "sections": ${list(stage.sections)}`,
     `  "scenery": ${list(stage.scenery)}`,
   ];

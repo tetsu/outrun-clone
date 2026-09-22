@@ -18,6 +18,7 @@ precision highp float;
 uniform sampler2D uTexture;
 uniform vec2 uSize;
 uniform vec3 uFog;
+uniform vec3 uTint;
 in vec2 vUv;
 in vec3 vExtra;
 out vec4 outColor;
@@ -25,16 +26,17 @@ void main() {
   // rows at or below the clip row are hidden behind nearer road
   if (uSize.y - gl_FragCoord.y >= vExtra.x) discard;
   vec4 c = texture(uTexture, vUv) * vExtra.z;          // premultiplied alpha
-  outColor = vec4(mix(c.rgb, uFog * c.a, vExtra.y), c.a);
+  outColor = vec4(mix(c.rgb * uTint, uFog * c.a, vExtra.y), c.a);
 }`;
 
 const FLOATS_PER_VERTEX = 7;
+const WHITE: Rgb = [1, 1, 1];
 const MAX_QUADS = 4096;
 
 /** Textured quads in top-down pixel coordinates, batched into one draw call per texture. */
 export class SpriteBatch {
   private readonly program: WebGLProgram;
-  private readonly u: Record<"uSize" | "uTexture" | "uFog", WebGLUniformLocation | null>;
+  private readonly u: Record<"uSize" | "uTexture" | "uFog" | "uTint", WebGLUniformLocation | null>;
   private readonly vao: WebGLVertexArrayObject;
   private readonly buffer: WebGLBuffer;
   private readonly data = new Float32Array(MAX_QUADS * 6 * FLOATS_PER_VERTEX);
@@ -42,7 +44,7 @@ export class SpriteBatch {
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     this.program = createProgram(gl, VERTEX, FRAGMENT);
-    this.u = uniforms(gl, this.program, ["uSize", "uTexture", "uFog"] as const);
+    this.u = uniforms(gl, this.program, ["uSize", "uTexture", "uFog", "uTint"] as const);
     this.vao = gl.createVertexArray()!;
     this.buffer = gl.createBuffer()!;
     gl.bindVertexArray(this.vao);
@@ -75,12 +77,14 @@ export class SpriteBatch {
     this.count++;
   }
 
-  flush(texture: WebGLTexture, width: number, height: number, fog: Rgb): void {
+  /** Draws what has been queued: hazed towards `fog` by each quad's fog, lit by `tint`. */
+  flush(texture: WebGLTexture, width: number, height: number, fog: Rgb, tint: Rgb = WHITE): void {
     if (this.count === 0) return;
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.uniform2f(this.u.uSize, width, height);
     gl.uniform3fv(this.u.uFog, fog);
+    gl.uniform3fv(this.u.uTint, tint);
     gl.uniform1i(this.u.uTexture, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);

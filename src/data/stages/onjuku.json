@@ -1,0 +1,25 @@
+{
+  "name": "Onjuku and Katsuura",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 63,
+  "sections": [
+    { "length": 400 },
+    { "length": 360, "curve": 0.0028, "hill": 6 },
+    { "length": 300, "curve": -0.003 },
+    { "length": 420, "hill": -10 },
+    { "length": 300, "curve": 0.0022 },
+    { "length": 360, "curve": -0.0026, "hill": 8 },
+    { "length": 480, "hill": -8 },
+    { "length": 300, "curve": 0.002 },
+    { "length": 400 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "palm", "from": 0, "to": 100000, "every": 30, "offset": 11.5, "side": "left" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 36, "offset": 15, "side": "right" },
+    { "kind": "sign", "from": 300, "to": 1500, "every": 120, "offset": 10, "side": "right" },
+    { "kind": "sign", "from": 1800, "to": 2600, "every": 120, "offset": 10, "side": "left" }
+  ],
+  "fork": { "left": "tateyama", "right": "kamogawa" }
+}

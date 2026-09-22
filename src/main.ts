@@ -1,12 +1,16 @@
+import { AudioSystem } from "./audio/context";
+import { SoundDirector } from "./audio/director";
 import { setLanguage } from "./core/i18n";
 import { Input, type InputState } from "./core/input";
 import { GameLoop, SIM_DT, SIM_HZ } from "./core/loop";
 import { loadSettings, saveSettings } from "./core/settings";
 import { BrowserStorage } from "./core/storage";
 import tree from "./data/stages.json";
+import { Flow } from "./game/flow";
 import { Game } from "./game/game";
 import { Hud } from "./game/hud";
 import { OptionsPanel } from "./game/options";
+import { Screens } from "./game/screens";
 import { createPlaceholderCarSprite, loadRenderedCarSprite } from "./render/carSprite";
 import { loadSheet, type CrashCarMeta, type CrashPeopleMeta } from "./render/crashSprite";
 import { Renderer } from "./render/renderer";
@@ -44,7 +48,13 @@ async function main(): Promise<void> {
   void loadSheet<CrashCarMeta>(gl, "assets/local/player-car/crash/").then((sheet) => (renderer.crashCar = sheet));
   void loadSheet<CrashPeopleMeta>(gl, "assets/local/crash-people/").then((sheet) => (renderer.crashPeople = sheet));
   const input = new Input();
-  const hud = new Hud(document.getElementById("hud")!);
+  const hudRoot = document.getElementById("hud")!;
+  const hud = new Hud(hudRoot);
+  const flow = new Flow(game, storage);
+  const screens = new Screens(document.getElementById("screens")!);
+  const audio = new AudioSystem();
+  audio.setLevels(settings.musicVolume, settings.effectsVolume);
+  const sound = new SoundDirector(audio);
 
   // Render at the display's native pixel size, times the resolution-scale setting.
   const resize = (): void => {
@@ -63,13 +73,16 @@ async function main(): Promise<void> {
   const loop = new GameLoop({
     step: (dt) => {
       const state = input.sample();
-      if (!options.isOpen) game.step(hooks.filterInput(state), dt);
+      if (!options.isOpen) flow.step(hooks.filterInput(state), dt);
     },
     render: (alpha, frameSeconds) => {
       if (!options.isOpen) time += frameSeconds;
       const state = game.renderState(options.isOpen ? 1 : alpha);
       renderer.draw(game, state, time);
       hud.update(state, frameSeconds);
+      hudRoot.hidden = !flow.hudVisible;
+      screens.update(flow);
+      sound.update(game, flow, state);
       dev?.update(state);
     },
   });
@@ -80,9 +93,16 @@ async function main(): Promise<void> {
     loop.fpsCap = settings.fpsCap;
     resize();
     hud.refreshLabels();
+    screens.refresh();
+    audio.setLevels(settings.musicVolume, settings.effectsVolume);
     options.build();
   });
   input.onMenu = () => options.toggle();
+  // browsers allow sound only after a user gesture: the first key press is it
+  input.onPress = (action) => {
+    audio.unlock();
+    if (!options.isOpen) flow.press(action);
+  };
 
   loop.fpsCap = settings.fpsCap;
   loop.start();
@@ -94,9 +114,9 @@ async function main(): Promise<void> {
   //   __boso.tune({ view: { curveModel: "projected" } })
   if (import.meta.env.DEV) {
     const { installDevTools } = await import("./dev/devTools");
-    dev = installDevTools({ game, stages: STAGES, storage, hooks });
+    dev = installDevTools({ game, flow, stages: STAGES, storage, hooks });
     const { installEditor } = await import("./dev/editor");
-    installEditor({ game, stages: STAGES, storage });
+    installEditor({ game, flow, stages: STAGES, storage });
     const advance = (seconds: number, held: Partial<InputState> = {}): PlayerState => {
       const state: InputState = { steer: 0, throttle: 0, brake: 0, gearToggle: false, ...held };
       for (let i = 0; i < Math.round(seconds * SIM_HZ); i++) {
@@ -110,6 +130,8 @@ async function main(): Promise<void> {
     Object.assign(window, {
       __boso: {
         game,
+        flow,
+        audio,
         player: game.player,
         advance,
         tune: (values: import("./dev/tuning").PartialTuning) => dev?.tune(values),

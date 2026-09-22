@@ -1,0 +1,26 @@
+{
+  "name": "Sakura and Lake Inba",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 69,
+  "light": "afternoon",
+  "sections": [
+    { "length": 300 },
+    { "length": 300, "curve": 0.0032 },
+    { "length": 300, "curve": -0.0032 },
+    { "length": 300, "hill": 14 },
+    { "length": 360, "curve": 0.003, "hill": -14 },
+    { "length": 300, "curve": -0.003 },
+    { "length": 300, "hill": 10 },
+    { "length": 360, "curve": 0.0032, "hill": -10 },
+    { "length": 300, "curve": -0.0028 },
+    { "length": 360 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 27, "offset": 12, "side": "left" },
+    { "kind": "palm", "from": 0, "to": 100000, "every": 36, "offset": 12, "side": "right" },
+    { "kind": "sign", "from": 200, "to": 3000, "every": 100, "offset": 10, "side": "both" }
+  ],
+  "fork": { "left": "makuhari", "right": "sekiyado" }
+}

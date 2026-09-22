@@ -1,0 +1,24 @@
+{
+  "name": "Goal: Sekiyado",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 74,
+  "light": "sunset",
+  "sections": [
+    { "length": 500 },
+    { "length": 300, "curve": 0.0032 },
+    { "length": 300, "curve": -0.003, "hill": 8 },
+    { "length": 400, "hill": -8 },
+    { "length": 300, "curve": 0.0032 },
+    { "length": 300, "curve": -0.003 },
+    { "length": 400, "hill": 10 },
+    { "length": 300, "curve": 0.003, "hill": -10 },
+    { "length": 300, "curve": -0.0028 },
+    { "length": 400 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 36, "offset": 13, "side": "both" },
+    { "kind": "sign", "from": 300, "to": 3200, "every": 90, "offset": 10, "side": "both" }
+  ]
+}

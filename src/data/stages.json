@@ -1,6 +1,9 @@
 {
   "tiers": [
     ["choshi"],
-    ["kujukuri", "sawara"]
+    ["kujukuri", "sawara"],
+    ["onjuku", "otaki", "narita"],
+    ["tateyama", "kamogawa", "kazusa", "sakura"],
+    ["urayasu", "umihotaru", "chiba", "makuhari", "sekiyado"]
   ]
 }

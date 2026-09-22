@@ -1,0 +1,21 @@
+{
+  "name": "Goal: Umihotaru",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 68,
+  "light": "sunset",
+  "sections": [
+    { "length": 700 },
+    { "length": 400, "curve": 0.002 },
+    { "length": 500, "hill": 20 },
+    { "length": 900 },
+    { "length": 500, "curve": -0.0016 },
+    { "length": 600, "hill": -20 },
+    { "length": 700 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "palm", "from": 0, "to": 1100, "every": 36, "offset": 12, "side": "both" },
+    { "kind": "sign", "from": 1100, "to": 100000, "every": 60, "offset": 9, "side": "both" }
+  ]
+}

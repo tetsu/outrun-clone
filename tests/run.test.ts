@@ -4,7 +4,8 @@ import type { InputState } from "../src/core/input";
 import tree from "../src/data/stages.json";
 import { Game } from "../src/game/game";
 import { Route, type Stages } from "../src/sim/route";
-import { FORK, roadUnder, type StageData } from "../src/sim/track";
+import { autopilot } from "../src/sim/autopilot";
+import type { StageData } from "../src/sim/track";
 
 const files = import.meta.glob<StageData>("../src/data/stages/*.json", { eager: true, import: "default" });
 const STAGES: Stages = Object.fromEntries(Object.entries(files).map(([path, data]) => [path.replace(/^.*\/|\.json$/g, ""), data]));
@@ -12,23 +13,11 @@ const FIRST = tree.tiers[0][0];
 
 const idle: InputState = { steer: 0, throttle: 0, brake: 0, gearToggle: false };
 
-/**
- * A competent, unhurried driver: full throttle, HI gear once LO runs out, steering for the
- * centre of the road 25 m ahead, keeping to one side through a fork's widening. Traffic is
- * cleared: this is about the road and the clock.
- */
+/** Drives with the autopilot (traffic cleared: this is about the road and the clock) until `until`; returns the seconds taken. */
 function drive(game: Game, side: -1 | 1, until: () => boolean, limit = 400): number {
-  const p = game.player;
   let seconds = 0;
   while (!until() && seconds < limit) {
-    const placed = game.route!.placed;
-    const first = placed[placed.length - 1];
-    const forkStart = first.commit === undefined ? Infinity : first.commit - FORK.commit;
-    const road = roadUnder(game.track, p.z + 25, p.x);
-    const aim = p.z > forkStart && p.z < forkStart + FORK.touch + 60 ? road.centre + side * 4 : road.centre;
-    const steer = Math.max(-1, Math.min(1, (aim - p.x) * 0.3 - p.vx * 0.15));
-    const gearToggle = p.gear === 0 && p.speed > 160 / 3.6;
-    game.step({ steer, throttle: 1, brake: 0, gearToggle }, SIM_DT);
+    game.step(autopilot(game, side), SIM_DT);
     game.traffic.vehicles.length = 0;
     seconds += SIM_DT;
   }
@@ -52,23 +41,37 @@ describe("run", () => {
     expect(run.timeLeft).toBeCloseTo(stage1.time! - 1 - spent + branch.time!, 3);
     expect(run.banner).toBe("checkpoint");
 
+    // all the way down the left-hand route to its goal
     drive(game, -1, () => run.phase !== "driving");
     expect(run.phase).toBe("goal");
-    expect(game.player.z).toBeGreaterThanOrEqual(game.route!.placed[1].goal!);
+    expect(run.stage).toBe(tree.tiers.length);
+    const last = game.route!.placed[game.route!.placed.length - 1];
+    expect(last.id).toBe(tree.tiers[tree.tiers.length - 1][0]);
+    expect(game.player.z).toBeGreaterThanOrEqual(last.goal!);
     expect(run.bonus).toBeGreaterThan(0);
     expect(run.banner).toBe("goal");
     const score = run.score;
 
-    // after the goal the car brakes to a stop, and a while later the run starts over
+    // after the goal the car brakes to a stop, and a while later the run is finished
     while (game.player.speed > 0) game.step(idle, SIM_DT);
     expect(run.score).toBe(score);
+    expect(run.finished).toBe(false);
     for (let t = 0; t < 3.5; t += SIM_DT) game.step(idle, SIM_DT);
+    expect(run.finished).toBe(true);
+
+    // a new run held at the start line does not move or count until go
+    game.restartRun(true);
     expect(run.stage).toBe(1);
-    expect(run.timeLeft).toBeGreaterThan(stage1.time! - 1);
-    expect(game.player.z).toBeLessThan(10);
+    game.step({ ...idle, throttle: 1 }, 1);
+    expect(game.player.z).toBe(0);
+    expect(run.timeLeft).toBe(stage1.time);
+    run.go();
+    game.step({ ...idle, throttle: 1 }, 1);
+    expect(game.player.z).toBeGreaterThan(0);
+    expect(run.timeLeft).toBeCloseTo(stage1.time! - 1, 6);
   });
 
-  it("is over when the time runs out: the car brakes to a stop and the run starts over", () => {
+  it("is over when the time runs out: the car brakes to a stop", () => {
     const game = new Game(new Route(STAGES, FIRST));
     const run = game.run!;
     run.timeLeft = 3;
@@ -82,30 +85,31 @@ describe("run", () => {
     while (game.player.speed > 0) game.step(idle, SIM_DT);
     expect(game.player.z - z).toBeLessThan(400);
     for (let t = 0; t < 3.5; t += SIM_DT) game.step(idle, SIM_DT);
-    expect(run.phase).toBe("driving");
-    expect(game.player.z).toBeLessThan(10);
+    expect(run.finished).toBe(true);
   });
 
-  it("gives a clean drive time to spare on every branch, but not much", () => {
+  it("gives a clean drive time to spare on every stage, but not much", () => {
     // Real runs have traffic in the way, so a clean scripted drive should reach each checkpoint
-    // and the goal with a margin; too large a margin and the clock is no pressure at all.
-    const stage1 = STAGES[FIRST];
+    // and goal with a margin; too large a margin and the clock is no pressure at all. The
+    // right-hand routes are meant to be harder, so their margins are the smaller ones.
+    const lines: string[] = [];
     const spare: Array<[number, string]> = [];
-    for (const side of [-1, 1] as const) {
-      const game = new Game(new Route(STAGES, FIRST));
-      const run = game.run!;
-      const branch = side < 0 ? stage1.fork!.left : stage1.fork!.right;
-      drive(game, side, () => run.stage === 2);
-      const atCheckpoint = run.timeLeft - STAGES[branch].time!;
-      drive(game, side, () => run.phase !== "driving");
-      expect(run.phase, branch).toBe("goal");
-      const atGoal = run.timeLeft;
-      console.info(`${FIRST} -> ${branch}: ${atCheckpoint.toFixed(1)} s spare at the checkpoint, ${atGoal.toFixed(1)} s at the goal`);
-      spare.push([atCheckpoint, `${FIRST} before ${branch}`], [atGoal, branch]);
+    for (const tier of tree.tiers) {
+      for (const id of tier) {
+        const game = new Game(new Route(STAGES, id));
+        const run = game.run!;
+        run.timeLeft = 1000; // the drive is timed, not the clock
+        const seconds = drive(game, -1, () => run.stage === 2 || run.phase !== "driving");
+        expect(run.phase === "goal" || run.stage === 2, id).toBe(true);
+        const margin = STAGES[id].time! - seconds;
+        lines.push(`${id.padEnd(10)} ${seconds.toFixed(1).padStart(5)} s of ${STAGES[id].time}: ${margin.toFixed(1)} s spare`);
+        spare.push([margin, id]);
+      }
     }
+    console.info(lines.join("\n"));
     for (const [seconds, where] of spare) {
-      expect(seconds, where).toBeGreaterThan(8);
-      expect(seconds, where).toBeLessThan(25);
+      expect(seconds, where).toBeGreaterThan(6);
+      expect(seconds, where).toBeLessThan(20);
     }
   });
 });

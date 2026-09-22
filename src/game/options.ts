@@ -1,6 +1,8 @@
 import { t, type StringKey } from "../core/i18n";
 import type { Settings } from "../core/settings";
 
+const LEVELS: Array<[string, string]> = [["0", "0%"], ["0.3", "30%"], ["0.5", "50%"], ["0.7", "70%"], ["1", "100%"]];
+
 /** The options panel. Opening it pauses the game. */
 export class OptionsPanel {
   private open = false;
@@ -48,6 +50,8 @@ export class OptionsPanel {
         ["0.75", "75%"],
         ["0.5", "50%"],
       ], (v) => (this.settings.resolutionScale = Number(v) as Settings["resolutionScale"])),
+      this.select("options.music", String(this.settings.musicVolume), LEVELS, (v) => (this.settings.musicVolume = Number(v))),
+      this.select("options.effects", String(this.settings.effectsVolume), LEVELS, (v) => (this.settings.effectsVolume = Number(v))),
     );
 
     const help = document.createElement("p");

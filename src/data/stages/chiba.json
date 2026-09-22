@@ -1,0 +1,23 @@
+{
+  "name": "Goal: Chiba City",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 66,
+  "light": "dusk",
+  "sections": [
+    { "length": 600 },
+    { "length": 400, "curve": 0.0024 },
+    { "length": 300, "curve": -0.0024 },
+    { "length": 500 },
+    { "length": 400, "curve": 0.0028, "hill": 8 },
+    { "length": 400, "curve": -0.002, "hill": -8 },
+    { "length": 500 },
+    { "length": 300, "curve": 0.002 },
+    { "length": 700 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 30, "offset": 12, "side": "both" },
+    { "kind": "sign", "from": 0, "to": 100000, "every": 75, "offset": 10, "side": "both" }
+  ]
+}

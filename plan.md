@@ -202,9 +202,12 @@ Decisions made while building:
 - Track editor (dev server, F4): sections, roadside rules, fork and next stage, time allowance, live preview, overview map, save to the stage files.
 - Traffic and collisions: 10 kinds of lane-keeping traffic from a seeded generator, bumps, spin and roll-over crashes with the occupants thrown out, reset to the road.
 - One complete route (start of milestone 6): stage 1 (Chōshi) forking to Kujūkuri or Sawara, with the countdown, the checkpoint at the fork, the goal line and game over (`src/sim/run.ts`, `src/data/stages.json`). The stage times are set so that a clean scripted drive reaches each checkpoint and goal with 10–18 s to spare, checked by a test.
+- Game flow (milestone 7): title screen with the high-score table, a demo drive after the title sits idle, music select, start-line countdown, results and game-over screens, three-letter name entry saved through the storage interface (`src/game/flow.ts`, `src/game/screens.ts`).
+- All 15 stages as first drafts with a palette per time of day (sunrise at Chōshi to night on the bay), blended between stages; every stage's time allowance is set from a measured clean drive.
+- Sound (milestone 8): a two-operator FM synthesizer and sequencer on Web Audio, three sequenced driving tracks and a results tune, an FM engine that follows the revs and throttle, tyre squeal, off-road rumble, wind, hits and crashes, checkpoint and countdown sounds (`src/audio/`).
 
 Not built yet from milestones 1–2: a code licence and `ASSETS.md`.
 
 ## Next step
 
-Game flow and HUD (M7): the start-line countdown, title screen, game over and goal results, so the route built in M6 plays as a game from "press start" to name entry. Then the remaining 12 stages. The full task list is in [TODO.md](TODO.md).
+Play it: every route by hand, with sound, and adjust the stage times, layouts and levels by ear and feel. Then milestone 9 (accuracy against the original) and the art that turns the placeholder scenery into the stages of the table above. The full task list is in [TODO.md](TODO.md).

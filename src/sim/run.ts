@@ -18,10 +18,11 @@ const SCORE_PER_METRE = 10;
 const BONUS_PER_SECOND = 20000;
 /** How long a banner stays up (the goal's and game over's stay). */
 const BANNER_SECONDS = 2.5;
-/** Seconds the car stands still after the run ends before it starts over (until M7's screens). */
-const RESTART_AFTER = 3;
+/** Seconds the car stands still after the run ends before the run counts as finished. */
+const STOPPED_FOR = 3;
 
-export type RunPhase = "driving" | "over" | "goal";
+/** "ready": at the start line, clock held, until go(). */
+export type RunPhase = "ready" | "driving" | "over" | "goal";
 export type Banner = "checkpoint" | "goal" | "over" | null;
 
 export class Run {
@@ -38,9 +39,9 @@ export class Run {
   bonus = 0;
   private stopped = 0;
 
-  /** A fresh run on a stage that grants `time` seconds. */
-  start(time: number): void {
-    this.phase = "driving";
+  /** A fresh run on a stage that grants `time` seconds, driving at once unless held `ready` for a start-line countdown. */
+  start(time: number, ready = false): void {
+    this.phase = ready ? "ready" : "driving";
     this.timeLeft = time;
     this.score = 0;
     this.stage = 1;
@@ -48,6 +49,11 @@ export class Run {
     this.bannerTime = 0;
     this.bonus = 0;
     this.stopped = 0;
+  }
+
+  /** The start line: the clock runs. */
+  go(): void {
+    if (this.phase === "ready") this.phase = "driving";
   }
 
   /** The checkpoint into the next stage: its time is added to what is left. */
@@ -78,14 +84,14 @@ export class Run {
         this.phase = "over";
         this.show("over");
       }
-    } else if (speed <= 0) {
+    } else if (this.phase !== "ready" && speed <= 0) {
       this.stopped += dt;
     }
   }
 
-  /** The run has ended and the car has stood still long enough to start over. */
+  /** The run has ended and the car has stood still for a moment. */
   get finished(): boolean {
-    return this.phase !== "driving" && this.stopped >= RESTART_AFTER;
+    return (this.phase === "over" || this.phase === "goal") && this.stopped >= STOPPED_FOR;
   }
 
   private show(banner: Banner): void {

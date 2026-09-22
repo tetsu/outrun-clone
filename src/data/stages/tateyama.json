@@ -1,0 +1,24 @@
+{
+  "name": "Minamibōsō and Tateyama",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 61,
+  "light": "afternoon",
+  "sections": [
+    { "length": 480 },
+    { "length": 420, "curve": -0.0018 },
+    { "length": 360, "hill": 8 },
+    { "length": 420, "curve": 0.0022, "hill": -8 },
+    { "length": 480 },
+    { "length": 360, "curve": -0.0026 },
+    { "length": 300, "curve": 0.002 },
+    { "length": 480 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "palm", "from": 0, "to": 100000, "every": 27, "offset": 11.5, "side": "both" },
+    { "kind": "sign", "from": 500, "to": 1000, "every": 150, "offset": 10, "side": "left" },
+    { "kind": "sign", "from": 2200, "to": 2800, "every": 120, "offset": 10, "side": "right" }
+  ],
+  "fork": { "left": "urayasu", "right": "umihotaru" }
+}

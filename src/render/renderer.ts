@@ -11,7 +11,7 @@ import {
   type CrashCarMeta, type CrashPeopleMeta, type Sheet,
 } from "./crashSprite";
 import { createTexture } from "./gl";
-import { DAY_COAST, type Palette } from "./palette";
+import { DEFAULT_LIGHT, mixPalette, PALETTES, type Palette } from "./palette";
 import { createSceneryAtlas, type SceneryAtlas } from "./placeholders";
 import { RoadRenderer } from "./road";
 import { fillRoadTable, fogAt, ROW_FLOATS, type ProjectedSegment, type ViewParams } from "./roadTable";
@@ -27,7 +27,7 @@ const SKID_YAW = 7;
 const OFFROAD_SHAKE = 0.006;
 
 export class Renderer {
-  palette: Palette = DAY_COAST;
+  palette: Palette = PALETTES[DEFAULT_LIGHT];
 
   private readonly background: BackgroundRenderer;
   private readonly road: RoadRenderer;
@@ -64,7 +64,7 @@ export class Renderer {
 
   private flush(): void {
     const gl = this.gl;
-    if (this.batchTexture) this.sprites.flush(this.batchTexture, gl.drawingBufferWidth, gl.drawingBufferHeight, this.palette.fog);
+    if (this.batchTexture) this.sprites.flush(this.batchTexture, gl.drawingBufferWidth, gl.drawingBufferHeight, this.palette.fog, this.palette.tint);
     this.batchTexture = null;
   }
 
@@ -84,6 +84,10 @@ export class Renderer {
       : 0;
     const camera = placeCamera(track, state.z, state.x, width, height, shake);
     const projected = fillRoadTable(track, camera, this.rows);
+    if (game.route) {
+      const light = game.route.lightAt(state.z);
+      this.palette = mixPalette(paletteFor(light.from), paletteFor(light.to), light.t);
+    }
 
     this.background.draw(width, height, camera.horizon!, state.backgroundScroll, this.palette);
     this.road.draw(this.rows, height, track.lanes, this.palette);
@@ -220,7 +224,7 @@ export class Renderer {
       width / 2 - shadowW / 2, groundY - shadowW * 0.17, shadowW, shadowW * 0.42,
       shadow.u0, shadow.v0, shadow.u1, shadow.v1, NO_CLIP, 0, 0.8,
     );
-    this.sprites.flush(this.atlasTexture, width, height, this.palette.fog);
+    this.sprites.flush(this.atlasTexture, width, height, this.palette.fog, this.palette.tint);
     if (rolling) this.drawThrownPeople(game, state, camera);
 
     // Put back on the road after a crash, the car blinks while nothing can hit it.
@@ -246,7 +250,7 @@ export class Renderer {
       }
       const f = frameRect(crash, index);
       this.sprites.quad(x, y, m.frameWidth * k, m.frameHeight * k, f.u0, f.v0, f.u1, f.v1, NO_CLIP, 0, 1);
-      this.sprites.flush(crash.texture, width, height, this.palette.fog);
+      this.sprites.flush(crash.texture, width, height, this.palette.fog, this.palette.tint);
       return;
     }
 
@@ -257,7 +261,7 @@ export class Renderer {
       left, top - (rolling ? rolling.lift * metre : 0), meta.frameWidth * scale, meta.frameHeight * scale,
       f.u0, f.v0, f.u1, f.v1, NO_CLIP, 0, 1,
     );
-    this.sprites.flush(this.car.texture, width, height, this.palette.fog);
+    this.sprites.flush(this.car.texture, width, height, this.palette.fog, this.palette.tint);
   }
 
   /** The driver and the passenger, thrown out in a roll-over, then sitting on the road ahead. */
@@ -285,6 +289,10 @@ export class Renderer {
       const k = scale / m.pixelsPerMetre;
       this.sprites.quad(x - m.anchorX * k, y - m.anchorY * k, m.frameWidth * k, m.frameHeight * k, f.u0, f.v0, f.u1, f.v1, NO_CLIP, 0, 1);
     }
-    this.sprites.flush(sheet.texture, camera.width, camera.height, this.palette.fog);
+    this.sprites.flush(sheet.texture, camera.width, camera.height, this.palette.fog, this.palette.tint);
   }
+}
+
+function paletteFor(light: string | undefined): Palette {
+  return PALETTES[(light ?? DEFAULT_LIGHT) as keyof typeof PALETTES] ?? PALETTES[DEFAULT_LIGHT];
 }

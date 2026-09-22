@@ -1,6 +1,7 @@
 import type { InputState } from "../core/input";
 import type { SaveStorage } from "../core/storage";
 import { STRIPE_LENGTHS, type ViewTuning } from "../game/camera";
+import type { Flow } from "../game/flow";
 import type { Game, RenderState } from "../game/game";
 import { ReplayPlayer, ReplayRecorder, type Replay } from "../sim/replay";
 import type { Stages } from "../sim/route";
@@ -25,6 +26,7 @@ export interface DevHooks {
 
 interface DevContext {
   game: Game;
+  flow: Flow;
   stages: Stages;
   storage: SaveStorage;
   hooks: DevHooks;
@@ -57,7 +59,7 @@ export interface DevTools {
 }
 
 export function installDevTools(ctx: DevContext): DevTools {
-  const { game, stages, storage, hooks } = ctx;
+  const { game, flow, stages, storage, hooks } = ctx;
   // The feel targets are measured on the looping test course.
   const feelStage = stages["test-course"];
   // A route is rebuilt from the start of the stage the car is in, keeping the car where it is.
@@ -68,11 +70,14 @@ export function installDevTools(ctx: DevContext): DevTools {
     }
     const at = game.route.stageAt(game.player.z);
     game.restartRoute(at.id, game.player.z - at.start);
+    flow.play();
   };
 
   // Values changed in an earlier session come back, so a reload does not lose a tuning session.
   applyTuning(storage.read<PartialTuning>(TUNING_KEY, {}));
-  rebuildCourse();
+  // rebuilt with that tuning, still on the title screen
+  if (game.route) game.restartRun(true);
+  else rebuildCourse();
   const save = (): void => storage.write(TUNING_KEY, changedTuning());
 
   const panel = document.createElement("div");
@@ -184,6 +189,7 @@ export function installDevTools(ctx: DevContext): DevTools {
       if (!replay) return;
       recorder = null;
       game.restartRoute(replay.stage);
+      flow.play();
       game.reset(replay.start);
       if (replay.traffic) game.traffic.restore(replay.traffic);
       if (replay.random !== undefined) game.random.state = replay.random;

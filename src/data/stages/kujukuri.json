@@ -2,20 +2,22 @@
   "name": "Kujūkuri",
   "halfWidth": 6.5,
   "lanes": 3,
-  "time": 65,
+  "time": 66,
+  "light": "morning",
   "sections": [
-    { "length": 900 },
-    { "length": 600, "curve": 0.001 },
     { "length": 700 },
-    { "length": 500, "curve": -0.0012 },
-    { "length": 800 },
-    { "length": 400, "curve": 0.0016 },
-    { "length": 600 }
+    { "length": 500, "curve": 0.001 },
+    { "length": 600 },
+    { "length": 400, "curve": -0.0012 },
+    { "length": 700 },
+    { "length": 300, "curve": 0.0016 },
+    { "length": 400 }
   ],
   "scenery": [
     { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
     { "kind": "pine", "from": 0, "to": 100000, "every": 24, "offset": 12, "side": "left" },
     { "kind": "pine", "from": 12, "to": 100000, "every": 24, "offset": 18, "side": "left" },
     { "kind": "palm", "from": 0, "to": 100000, "every": 40, "offset": 12, "side": "right" }
-  ]
+  ],
+  "fork": { "left": "onjuku", "right": "otaki" }
 }

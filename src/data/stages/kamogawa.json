@@ -1,0 +1,26 @@
+{
+  "name": "Kamogawa and Mount Nokogiri",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 61,
+  "light": "afternoon",
+  "sections": [
+    { "length": 360 },
+    { "length": 420, "hill": 24 },
+    { "length": 300, "curve": 0.003, "hill": 8 },
+    { "length": 360, "curve": -0.0032 },
+    { "length": 300, "hill": -20 },
+    { "length": 300, "curve": 0.0028, "hill": 10 },
+    { "length": 360, "curve": -0.002, "hill": -22 },
+    { "length": 420 },
+    { "length": 300 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 24, "offset": 12, "side": "left" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 33, "offset": 14, "side": "right" },
+    { "kind": "sign", "from": 600, "to": 1500, "every": 100, "offset": 10, "side": "right" },
+    { "kind": "sign", "from": 1900, "to": 2500, "every": 100, "offset": 10, "side": "left" }
+  ],
+  "fork": { "left": "umihotaru", "right": "chiba" }
+}

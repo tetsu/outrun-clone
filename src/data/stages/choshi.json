@@ -3,6 +3,7 @@
   "halfWidth": 6.5,
   "lanes": 3,
   "time": 75,
+  "light": "sunrise",
   "sections": [
     { "length": 480 },
     { "length": 420, "curve": 0.0014 },

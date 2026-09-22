@@ -1,0 +1,26 @@
+{
+  "name": "Kazusa hills",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 65,
+  "light": "afternoon",
+  "sections": [
+    { "length": 300 },
+    { "length": 300, "curve": 0.0032 },
+    { "length": 300, "curve": -0.0034, "hill": 8 },
+    { "length": 360, "curve": 0.003 },
+    { "length": 300, "hill": 12 },
+    { "length": 360, "curve": -0.003, "hill": -12 },
+    { "length": 300, "curve": 0.0026 },
+    { "length": 300, "curve": -0.0024 },
+    { "length": 420, "hill": -8 },
+    { "length": 300 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 18, "offset": 11, "side": "both" },
+    { "kind": "pine", "from": 9, "to": 100000, "every": 24, "offset": 17, "side": "both" },
+    { "kind": "sign", "from": 200, "to": 2600, "every": 120, "offset": 9.5, "side": "both" }
+  ],
+  "fork": { "left": "chiba", "right": "makuhari" }
+}

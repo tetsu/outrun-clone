@@ -12,7 +12,9 @@ In this order; each one unblocks the next.
 2. [x] **Road fork prototype (M2).** A stage ending in `"fork"` widens (two roads overlapping), parts with a sign in the gore, and the two roads bend apart at the same height; the car commits to the branch it is on once there is grass between them, and the branch's stage is attached (`src/sim/route.ts`). Both roads live in the scanline table (two centres per row) and the shader colours each pixel from the nearer road. The branch not taken fades out before the fork's data ends. Tests: `tests/fork.test.ts`. (The `fork-test` prototype stages were replaced by the first real stages under M6.)
 3. [x] **Track editor (M2, M4).** Dev server only, F4: sections, roadside rules, fork and next stage, with the game as live preview, an overview (plan and height profile; click to put the car there) and Save through a dev-only endpoint (`/__dev/stage/<name>.json` in `vite.config.ts`). Saved files keep the hand-written layout (`tests/stages.test.ts`).
 4. [x] **Traffic and collisions (M5).** Traffic, bumps, spin and roll-over crashes are in; what is left is under M5 below.
-5. [x] **One complete route (M6).** Chōshi → fork → Kujūkuri / Sawara with the countdown, a checkpoint at the fork, the goal and game over. Start-line countdown, title and game-over screens are M7; until then the run starts over by itself.
+5. [x] **One complete route (M6).** Chōshi → fork → Kujūkuri / Sawara with the countdown, a checkpoint at the fork, the goal and game over.
+6. [x] **Game flow (M7).** Title with the high-score table, demo drive, music select, start-line countdown, results, game over, name entry.
+7. [x] **All 15 stages (M6) and sound (M8).** First-draft layouts for the whole tree with a palette per time of day, and Web Audio sound: FM engine and effects, an FM synthesizer with three sequenced driving tracks and a results tune.
 
 Long-lead work for the owner, to start in parallel because everything car-related is redone when it lands:
 
@@ -172,30 +174,37 @@ Half of the original's impression is its music.
 - [x] Stage graph data format: each stage file names its left and right successors in `fork`; `src/data/stages.json` lists the tiers (tier n has n stages, each forking to the two below it; the last tier ends at goals) and `tests/stages.test.ts` checks the tree. A stage with neither `fork` nor `next` ends at the goal, with a straight run-out built past it.
 - [x] Countdown timer and score (`src/sim/run.ts`): whole seconds counting down, red under ten; score is distance weighted by speed, plus a bonus per second left at the goal. The values are placeholders until they are matched against the original (M9).
 - [x] Checkpoints that extend the time: entering a stage adds its `time` (stage file; default 65 s). Pacing is measured: a clean scripted drive must reach every checkpoint and goal with 8–25 s to spare (`tests/run.test.ts`); today 18 s at the fork, 13 s at Kujūkuri, 10 s at Sawara.
-- [ ] When the time runs out the car brakes to a stop and, 3 s later, the run starts over. Replace with M7's game-over screen and start-line countdown; also the goal's results.
-- [ ] Palette and scenery transitions between stages; palettes per time of day (sunrise → night).
-- [ ] Road layouts for all 15 stages (stage table in `plan.md` → Stages): 3 of 15 are first drafts (`choshi`, `kujukuri`, `sawara`), dressed with the placeholder kinds only. Their landmarks (lighthouse, wind turbines, canal town) need art.
+- [x] When the time runs out the car brakes to a stop; the flow (M7) takes over from there.
+- [x] Palettes per time of day (`src/render/palette.ts`: sunrise, morning, midday, afternoon, sunset, dusk, night), picked by `light` in the stage file, blended over the first 900 m past a checkpoint; sprites are tinted by the palette's light, so night is night for the cars and trees too. The sun doubles as the moon.
+- [ ] Scenery transitions between stages (the roadside patterns still change at the stage boundary).
+- [x] Road layouts for all 15 stages, first drafts, dressed with the placeholder kinds only (`src/data/stages/`, tree in `src/data/stages.json`). Every stage's time is set from a measured clean drive: 18 s spare on stage 1, 8–12 s elsewhere, less to the right (`tests/run.test.ts` prints the table). Bends are kept at 0.0032 or gentler: tighter ones made even the autopilot crawl.
+- [ ] Landmarks per stage (lighthouse, wind turbines, canal town, castle, temple, windmill, bridge, towers…) need art; the stage table in `plan.md` says what each stage shows.
+- [ ] Play every route by hand and adjust the times and layouts; the autopilot is not a player.
 - [ ] 5 ending scenes (2D illustrations).
 
 ### M7 — Game flow and HUD
 
-- [ ] Game state machine: title → music select → start → drive → goal / game over → name entry.
-- [ ] Title screen; "press start" also unlocks audio.
-- [ ] Attract mode.
-- [ ] Music select screen.
-- [ ] Start-line countdown.
-- [ ] HUD: tachometer, score, stage, lap times, course-map progress (speed, time and gear exist).
-- [ ] Check the HUD layout at 16:10 (Steam Deck, 1280×800) and ultrawide.
+- [x] Game state machine (`src/game/flow.ts`): title → countdown → driving → results / game over → name entry → title, with the game stepped on every screen so the road stays alive behind the text. Screens are DOM (`src/game/screens.ts`), like the HUD. Tests: `tests/flow.test.ts`.
+- [x] Music select between the title and the countdown: the three FM tracks, ← → to choose, remembered between runs.
+- [x] Title screen with "press start" (Enter, or the gamepad's Start button) and the high-score table. The first key press unlocks the audio.
+- [x] Attract mode: after 12 s on the title the autopilot (`src/sim/autopilot.ts`, also the pacing test's driver) drives a demo, alternating the branch each time, until the run ends or 75 s pass.
+- [x] Start-line countdown: 3, 2, 1, GO; the clock is held and the car cannot move (`Run` phase "ready").
+- [ ] HUD: tachometer, lap times, course-map progress (speed, time, gear, score and stage exist).
+- [ ] Check the HUD and screen layout at 16:10 (Steam Deck, 1280×800) and ultrawide.
 - [ ] HUD font with Japanese glyphs; record its licence in `ASSETS.md`.
-- [ ] Game over, high-score table with initials entry (through the storage interface).
+- [x] Game over and results screens, a high-score table of 10 (score, initials, route taken, goal reached) with three-letter name entry, saved through the storage interface. The table starts seeded so there is something to beat.
+- [ ] Ending scenes at the goal (M6's 5 illustrations) go before the results.
+- [ ] Attract mode should show the demo's route and a "how to play" card; the demo drives clean, it never crashes on purpose.
 
 ### M8 — Audio
 
-- [ ] FM synthesizer and sequencer (Web Audio).
-- [ ] Engine sound tied to RPM and gear; tyre squeal, crash, checkpoint and countdown sounds.
-- [ ] Streamed-music player for generated tracks.
-- [ ] One trial FM-sequenced track; compare with a Suno track in game and decide (`plan.md` → Music).
-- [ ] Three driving tracks and a results tune.
+- [x] FM synthesizer (two-operator, per-note nodes, `src/audio/fm.ts`) and a look-ahead sequencer (`src/audio/sequencer.ts`) playing songs written as note data (`src/audio/song.ts`: note names, melodies as strings, drum grids, chords and arpeggios).
+- [x] Engine sound from the revs within the gear and the throttle (`src/audio/engine.ts`); tyre squeal from the skid, off-road rumble, wind, bump / scrape / knock / crash, the checkpoint chime, the countdown beeps, the game-over sting (`src/audio/effects.ts`). `src/audio/director.ts` turns the game state and events into all of it every frame. Music and effects levels are in the options.
+- [ ] Streamed-music player for generated tracks (the sequencer plays FM songs only).
+- [x] Three FM driving tracks ("Coastal Breeze", "Sunset Bay", "Inland Rush") and a results tune (`src/data/music/`); the tempo lifts 10% under ten seconds left. Written quickly: competent loops, not finished songs. Compare with a Suno track in game and decide (`plan.md` → Music).
+- [ ] Listen to everything on real speakers and headphones and tune the levels; only the note data has been checked so far.
+- [ ] The engine is a plain synth; check it against the original's and try a sampled or wavetable engine if it sounds cheap.
+- [ ] Gear-change sound, traffic engines passing by, the passenger's reactions.
 
 ### M9 — Accuracy and polish
 

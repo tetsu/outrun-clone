@@ -7,7 +7,7 @@ export interface InputState {
   gearToggle: boolean;
 }
 
-export type Action = "left" | "right" | "throttle" | "brake" | "gear" | "menu";
+export type Action = "left" | "right" | "throttle" | "brake" | "gear" | "start" | "menu";
 
 /** Default bindings; rebinding replaces this table through the settings later. */
 const DEFAULT_KEYS: Record<string, Action> = {
@@ -21,18 +21,23 @@ const DEFAULT_KEYS: Record<string, Action> = {
   KeyS: "brake",
   Space: "gear",
   ShiftLeft: "gear",
+  Enter: "start",
   Escape: "menu",
 };
+
+/** Standard gamepad buttons. */
+const PAD = { a: 0, b: 1, x: 2, rb: 5, lt: 6, rt: 7, back: 8, start: 9, left: 14, right: 15 } as const;
 
 const STICK_DEADZONE = 0.12;
 
 export class Input {
   onMenu: (() => void) | null = null;
+  /** Every press of a key or button (not its repeat), for the screens outside driving. */
+  onPress: ((action: Action) => void) | null = null;
 
   private readonly held = new Set<Action>();
+  private readonly padHeld = new Set<Action>();
   private gearPresses = 0;
-  private padGearHeld = false;
-  private padMenuHeld = false;
 
   constructor(target: Window = window) {
     target.addEventListener("keydown", (e) => {
@@ -43,6 +48,7 @@ export class Input {
       if (action === "menu") this.onMenu?.();
       else if (action === "gear") this.gearPresses++;
       else this.held.add(action);
+      if (action !== "menu") this.onPress?.(action);
     });
     target.addEventListener("keyup", (e) => {
       const action = DEFAULT_KEYS[e.code];
@@ -63,17 +69,31 @@ export class Input {
       if (Math.abs(x) > STICK_DEADZONE) {
         steer = Math.sign(x) * ((Math.abs(x) - STICK_DEADZONE) / (1 - STICK_DEADZONE));
       }
-      if (pad.buttons[14]?.pressed) steer = -1;
-      if (pad.buttons[15]?.pressed) steer = 1;
-      throttle = Math.max(throttle, pad.buttons[7]?.value ?? 0, pad.buttons[0]?.pressed ? 1 : 0);
-      brake = Math.max(brake, pad.buttons[6]?.value ?? 0, pad.buttons[2]?.pressed ? 1 : 0);
+      if (pad.buttons[PAD.left]?.pressed) steer = -1;
+      if (pad.buttons[PAD.right]?.pressed) steer = 1;
+      throttle = Math.max(throttle, pad.buttons[PAD.rt]?.value ?? 0, pad.buttons[PAD.a]?.pressed ? 1 : 0);
+      brake = Math.max(brake, pad.buttons[PAD.lt]?.value ?? 0, pad.buttons[PAD.x]?.pressed ? 1 : 0);
 
-      const gearHeld = !!(pad.buttons[1]?.pressed || pad.buttons[5]?.pressed);
-      if (gearHeld && !this.padGearHeld) this.gearPresses++;
-      this.padGearHeld = gearHeld;
-      const menuHeld = !!pad.buttons[9]?.pressed;
-      if (menuHeld && !this.padMenuHeld) this.onMenu?.();
-      this.padMenuHeld = menuHeld;
+      // presses: the buttons and the stick as a d-pad
+      const down = (...buttons: number[]): boolean => buttons.some((b) => pad.buttons[b]?.pressed);
+      const now: Array<[Action, boolean]> = [
+        ["left", down(PAD.left) || x < -0.5], ["right", down(PAD.right) || x > 0.5],
+        ["throttle", down(PAD.a) || (pad.buttons[PAD.rt]?.value ?? 0) > 0.5],
+        ["brake", down(PAD.x) || (pad.buttons[PAD.lt]?.value ?? 0) > 0.5],
+        ["gear", down(PAD.b, PAD.rb)], ["start", down(PAD.start)], ["menu", down(PAD.back)],
+      ];
+      for (const [action, held] of now) {
+        const was = this.padHeld.has(action);
+        if (held && !was) {
+          if (action === "menu") this.onMenu?.();
+          else {
+            if (action === "gear") this.gearPresses++;
+            this.onPress?.(action);
+          }
+        }
+        if (held) this.padHeld.add(action);
+        else this.padHeld.delete(action);
+      }
     }
 
     const gearToggle = this.gearPresses > 0;

@@ -1,0 +1,24 @@
+{
+  "name": "Narita",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 70,
+  "sections": [
+    { "length": 360 },
+    { "length": 300, "curve": 0.003 },
+    { "length": 300, "curve": -0.0032 },
+    { "length": 360, "hill": 10 },
+    { "length": 420, "curve": 0.0024, "hill": -10 },
+    { "length": 300, "curve": -0.0028 },
+    { "length": 360 },
+    { "length": 300, "curve": 0.0034 },
+    { "length": 420 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 27, "offset": 11, "side": "both" },
+    { "kind": "sign", "from": 200, "to": 1200, "every": 100, "offset": 10, "side": "both" },
+    { "kind": "sign", "from": 2100, "to": 2900, "every": 100, "offset": 10, "side": "right" }
+  ],
+  "fork": { "left": "kazusa", "right": "sakura" }
+}

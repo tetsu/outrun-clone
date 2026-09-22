@@ -2,7 +2,8 @@
   "name": "Sawara",
   "halfWidth": 6.5,
   "lanes": 3,
-  "time": 62,
+  "time": 76,
+  "light": "morning",
   "sections": [
     { "length": 480 },
     { "length": 420, "curve": 0.0024 },
@@ -19,5 +20,6 @@
     { "kind": "pine", "from": 0, "to": 100000, "every": 30, "offset": 11, "side": "both" },
     { "kind": "sign", "from": 400, "to": 1300, "every": 150, "offset": 10, "side": "right" },
     { "kind": "sign", "from": 2400, "to": 3200, "every": 150, "offset": 10, "side": "right" }
-  ]
+  ],
+  "fork": { "left": "otaki", "right": "narita" }
 }

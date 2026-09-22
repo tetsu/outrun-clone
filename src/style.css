@@ -99,6 +99,139 @@ body {
   opacity: 0.7;
 }
 
+/* The screens over the road (title, countdown, results, name entry): the HUD's typography, centred. */
+#screens {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-style: italic;
+  text-shadow: 0 0.3vh 0 rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+#screens[hidden] {
+  display: none;
+}
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5vh;
+  padding: 3vh 4vh;
+  max-width: 90vw;
+  box-sizing: border-box;
+}
+.screen-title,
+.screen-musicSelect,
+.screen-gameover,
+.screen-results,
+.screen-nameEntry {
+  background: rgba(0, 8, 24, 0.55);
+  border-radius: 1.5vh;
+}
+.screen-attract {
+  position: absolute;
+  bottom: 12vh;
+}
+.screen-logo {
+  font-size: 12vh;
+  line-height: 1;
+  color: #ffd84a;
+  text-shadow: 0 0.8vh 0 #b6261a;
+}
+.screen-sub {
+  font-size: 3vh;
+}
+.screen-press {
+  font-size: 4.5vh;
+  margin-top: 2vh;
+}
+.screen-demo {
+  font-size: 3vh;
+  opacity: 0.8;
+}
+.screen-hint {
+  font-size: 2vh;
+  font-style: normal;
+  font-weight: 400;
+  opacity: 0.75;
+}
+.screen-count {
+  font-size: 22vh;
+  line-height: 1;
+  color: #ffd84a;
+  text-shadow: 0 1vh 0 rgba(0, 0, 0, 0.6);
+}
+.screen-banner {
+  font-size: 10vh;
+  line-height: 1;
+  color: #ffd84a;
+}
+.screen-line {
+  font-size: 4vh;
+  font-variant-numeric: tabular-nums;
+}
+.screen-music {
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  font-size: 5vh;
+}
+.screen-music .track {
+  opacity: 0.5;
+}
+.screen-music .track.active {
+  opacity: 1;
+  color: #ffd84a;
+}
+.screen-music .track.active::before {
+  content: "▶ ";
+}
+.screen-letters {
+  display: flex;
+  gap: 2vh;
+  font-size: 12vh;
+  line-height: 1;
+}
+.letter {
+  min-width: 1em;
+}
+.letter.active {
+  color: #ffd84a;
+}
+.screen-scores {
+  margin-top: 2vh;
+  border-collapse: collapse;
+  font-size: 2.6vh;
+  font-variant-numeric: tabular-nums;
+}
+.screen-scores caption {
+  color: #ffd84a;
+  margin-bottom: 1vh;
+}
+.screen-scores td {
+  padding: 0.2vh 1.5vh;
+  text-align: right;
+}
+.screen-scores td:nth-child(2) {
+  text-align: left;
+}
+.screen-scores tr.active {
+  color: #ffd84a;
+}
+.blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
 #overlay {
   position: fixed;
   inset: 0;

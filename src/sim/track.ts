@@ -98,6 +98,8 @@ export interface StageData {
   lanes: number;
   /** Seconds on the clock for driving it: the starting time, or added at the checkpoint into it (see run.ts). */
   time?: number;
+  /** Time of day it is lit by (a palette name, src/render/palette.ts; default midday). */
+  light?: string;
   sections: SectionData[];
   scenery: SceneryRule[];
   /** The stage ends in a fork. */

@@ -1,0 +1,21 @@
+{
+  "name": "Goal: Urayasu",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 69,
+  "light": "night",
+  "sections": [
+    { "length": 900 },
+    { "length": 600, "curve": 0.0012 },
+    { "length": 600 },
+    { "length": 500, "curve": -0.0016 },
+    { "length": 700, "hill": 6 },
+    { "length": 500, "curve": 0.0014, "hill": -6 },
+    { "length": 600 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 45, "offset": 14, "side": "left" },
+    { "kind": "sign", "from": 0, "to": 100000, "every": 90, "offset": 10, "side": "right" }
+  ]
+}

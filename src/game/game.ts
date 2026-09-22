@@ -16,6 +16,8 @@ export interface RenderState {
   steer: number;
   gear: 0 | 1;
   offroad: boolean;
+  /** The throttle applied in the last step, for the engine sound. */
+  throttle: number;
   skid: number;
   lapTime: number;
   crash: number;
@@ -31,6 +33,9 @@ export interface RenderState {
   /** Sideways scroll of the background, in screen heights. */
   backgroundScroll: number;
 }
+
+export type GameEvent = HitEvent | "checkpoint" | "goal" | "over";
+const MAX_EVENTS = 64;
 
 export class Game {
   readonly player: PlayerState = createPlayer();
@@ -51,6 +56,9 @@ export class Game {
   readonly random = new Random(7);
   /** What the car hit in the last step, for sound and effects. */
   lastHit: HitEvent | null = null;
+  /** What happened, for the sound: hits and the run's turns. Whoever plays them drains the list. */
+  readonly events: GameEvent[] = [];
+  private throttle = 0;
 
   constructor(course: Track | Route) {
     this.route = "placed" in course ? course : null;
@@ -76,21 +84,21 @@ export class Game {
   }
 
   /** Start the route over at a stage, with the car `z` metres into it (rebuilt with the current course tuning). */
-  restartRoute(stage: string, z = 0): void {
+  restartRoute(stage: string, z = 0, ready = false): void {
     if (!this.route) return;
     this.route.restart(stage);
     this.player.z = z;
     this.player.crash = 0;
     this.previous = { ...this.player };
     this.traffic.reset(this.track, z);
-    this.run?.start(this.stageTime(stage));
+    this.run?.start(this.stageTime(stage), ready);
   }
 
-  /** A new run from the start line: the car at rest on the first stage. */
-  restartRun(): void {
+  /** A new run from the start line: the car at rest on the first stage, the clock held until `run.go()` if `ready`. */
+  restartRun(ready = false): void {
     if (!this.route) return;
     Object.assign(this.player, createPlayer());
-    this.restartRoute(this.route.first);
+    this.restartRoute(this.route.first, 0, ready);
   }
 
   /** Put the car in a given state, with nothing to interpolate from (replays start here). */
@@ -113,20 +121,33 @@ export class Game {
       this.route.swappedFrom = null;
     }
 
-    // Once the run has ended the car is no longer the player's: it brakes to a stop.
-    const driving = !this.run || this.run.phase === "driving";
-    const control = driving ? input : { steer: input.steer, throttle: 0, brake: 0.7, gearToggle: false };
+    // Before the start the car waits; once the run has ended it is no longer the player's and brakes to a stop.
+    const phase = this.run?.phase ?? "driving";
+    const control = phase === "driving" ? input
+      : phase === "ready" ? { steer: input.steer, throttle: 0, brake: 0, gearToggle: input.gearToggle }
+      : { steer: input.steer, throttle: 0, brake: 0.7, gearToggle: false };
     const curve = roadUnder(this.track, this.player.z, this.player.x).curve;
     if (this.player.crash) stepCrash(this.player, this.track, dt);
     else stepPlayer(this.player, control, this.track, dt);
+    this.throttle = control.throttle;
     if (this.route) {
       this.traffic.step(this.track, this.player.z, dt);
       this.lastHit = collide(this.player, this.track, this.traffic, this.random, dt);
+      if (this.lastHit) this.emit(this.lastHit);
     }
-    if (this.route && this.run) this.stepRun(this.route, this.run, dt);
+    if (this.route && this.run) {
+      const banner = this.run.banner;
+      this.stepRun(this.route, this.run, dt);
+      if (this.run.banner && this.run.banner !== banner) this.emit(this.run.banner);
+    }
     this.odometer += this.player.speed * dt;
     // the horizon slides against the bend: heading change = curvature * distance
     this.scroll += curve * this.player.speed * dt * 0.9;
+  }
+
+  private emit(event: GameEvent): void {
+    if (this.events.length >= MAX_EVENTS) this.events.shift();
+    this.events.push(event);
   }
 
   /** The checkpoints and the goal line the car has just passed, then the clock. */
@@ -137,7 +158,6 @@ export class Game {
     const current = placed[Math.min(run.stage, placed.length) - 1];
     if (current.goal !== undefined && p.z >= current.goal) run.finish();
     run.step(dt, p.speed);
-    if (run.finished) this.restartRun();
   }
 
   renderState(alpha: number): RenderState {
@@ -154,6 +174,7 @@ export class Game {
       steer: lerp(a.steer, b.steer),
       gear: b.gear,
       offroad: b.offroad,
+      throttle: this.throttle,
       skid: lerp(a.skid, b.skid),
       crash: b.crash,
       crashTime: b.crash === a.crash ? lerp(a.crashTime, b.crashTime) : b.crashTime,

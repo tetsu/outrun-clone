@@ -1,0 +1,24 @@
+{
+  "name": "Ōtaki and Yōrō Valley",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 61,
+  "sections": [
+    { "length": 420 },
+    { "length": 360, "hill": 16 },
+    { "length": 300, "curve": 0.002, "hill": 6 },
+    { "length": 420, "curve": -0.0024, "hill": -14 },
+    { "length": 300, "hill": 12 },
+    { "length": 360, "curve": 0.0028, "hill": -8 },
+    { "length": 300 },
+    { "length": 420, "curve": -0.002 },
+    { "length": 360 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 24, "offset": 12, "side": "both" },
+    { "kind": "pine", "from": 12, "to": 100000, "every": 30, "offset": 19, "side": "both" },
+    { "kind": "sign", "from": 700, "to": 1700, "every": 120, "offset": 10, "side": "right" }
+  ],
+  "fork": { "left": "kamogawa", "right": "kazusa" }
+}

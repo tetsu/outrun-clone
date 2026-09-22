@@ -1,0 +1,22 @@
+{
+  "name": "Goal: Makuhari",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 65,
+  "light": "night",
+  "sections": [
+    { "length": 800 },
+    { "length": 400, "curve": 0.002 },
+    { "length": 500 },
+    { "length": 400, "curve": -0.0026 },
+    { "length": 600 },
+    { "length": 300, "curve": 0.003 },
+    { "length": 300, "curve": -0.003 },
+    { "length": 600 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "palm", "from": 0, "to": 100000, "every": 30, "offset": 12, "side": "both" },
+    { "kind": "sign", "from": 0, "to": 100000, "every": 60, "offset": 10, "side": "both" }
+  ]
+}

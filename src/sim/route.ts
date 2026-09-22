@@ -8,6 +8,8 @@ export type Stages = Record<string, StageData>;
 const LOOKAHEAD = 1500;
 /** Straight road past the goal line, so the run-out after the goal never sees the road end. */
 export const GOAL_RUNOUT = 1500;
+/** A stage's light fades in over this far past its checkpoint. */
+const LIGHT_BLEND = 900;
 
 /** A stage laid down on the route. Distances are along the route's track. */
 export interface PlacedStage {
@@ -55,6 +57,15 @@ export class Route {
   stageAt(z: number): PlacedStage {
     for (let i = this.placed.length - 1; i > 0; i--) if (z >= this.placed[i].start) return this.placed[i];
     return this.placed[0];
+  }
+
+  /** The light at a distance: the stage entered there, fading from the one before it over LIGHT_BLEND. */
+  lightAt(z: number): { from: string | undefined; to: string | undefined; t: number } {
+    let i = this.placed.length - 1;
+    while (i > 0 && z < this.placed[i].checkpoint) i--;
+    const to = this.stages[this.placed[i].id].light;
+    const from = i > 0 ? this.stages[this.placed[i - 1].id].light : to;
+    return { from, to, t: i > 0 ? Math.min(1, (z - this.placed[i].checkpoint) / LIGHT_BLEND) : 1 };
   }
 
   /**
