@@ -102,6 +102,25 @@ function sign(c: CanvasRenderingContext2D, w: number, h: number): void {
   c.fill();
 }
 
+/** The gantry over the goal line: two posts and a chequered banner, wide enough to span the road. */
+function goal(c: CanvasRenderingContext2D, w: number, h: number): void {
+  c.fillStyle = "#e9e9e9";
+  c.fillRect(w * 0.03, h * 0.08, w * 0.04, h * 0.92);
+  c.fillRect(w * 0.93, h * 0.08, w * 0.04, h * 0.92);
+  const top = 0;
+  const bottom = h * 0.3;
+  const cols = 24;
+  const rows = 3;
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      c.fillStyle = (i + j) % 2 ? "#111111" : "#f6f6f6";
+      c.fillRect(w * (0.01 + (0.98 * i) / cols), top + ((bottom - top) * j) / rows, (w * 0.98) / cols + 1, (bottom - top) / rows + 1);
+    }
+  }
+  c.fillStyle = "#c8102e";
+  c.fillRect(w * 0.01, bottom, w * 0.98, h * 0.06);
+}
+
 function shadow(c: CanvasRenderingContext2D, w: number, h: number): void {
   // a round gradient squashed into an ellipse
   c.save();
@@ -122,11 +141,12 @@ const ITEMS: Array<[string, Painter, number, number, number, number]> = [
   ["palm", palm, 512, 1024, 6, 12],
   ["post", post, 96, 384, 0.3, 1.2],
   ["sign", sign, 512, 512, 4.5, 4.5],
+  ["goal", goal, 1024, 400, 20, 7.8],
   ["shadow", shadow, 512, 256, 1, 0.5],
 ];
 
-/** The kinds of roadside object a stage can place (the shadow is drawn under cars, not placed). */
-export const SCENERY_KINDS = ITEMS.map(([name]) => name).filter((name) => name !== "shadow");
+/** The kinds of roadside object a stage can place (the shadow is drawn under cars and the goal gantry is placed by the route). */
+export const SCENERY_KINDS = ITEMS.map(([name]) => name).filter((name) => name !== "shadow" && name !== "goal");
 
 export function createSceneryAtlas(): SceneryAtlas {
   const canvas = document.createElement("canvas");

@@ -9,9 +9,10 @@ Milestone numbers (M1–M11) refer to the milestones in `plan.md`.
 In this order; each one unblocks the next.
 
 1. [x] **Decide the curve model (M2).** Decided: the arcade model (a bend adds a sideways offset accumulated row by row up the screen, as the 1980s hardware did), tuned in the feel loop ([docs/feel-loop.md](docs/feel-loop.md)). The projected model stays selectable in the tuning panel. The fork is built on the arcade model.
-2. [x] **Road fork prototype (M2).** A stage ending in `"fork"` widens (two roads overlapping), parts with a sign in the gore, and the two roads bend apart at the same height; the car commits to the branch it is on once there is grass between them, and the branch's stage is attached (`src/sim/route.ts`). Both roads live in the scanline table (two centres per row) and the shader colours each pixel from the nearer road. The branch not taken fades out before the fork's data ends. Prototype stages: `fork-test` → `fork-test-left` / `fork-test-right` → back to `fork-test`. Tests: `tests/fork.test.ts`.
+2. [x] **Road fork prototype (M2).** A stage ending in `"fork"` widens (two roads overlapping), parts with a sign in the gore, and the two roads bend apart at the same height; the car commits to the branch it is on once there is grass between them, and the branch's stage is attached (`src/sim/route.ts`). Both roads live in the scanline table (two centres per row) and the shader colours each pixel from the nearer road. The branch not taken fades out before the fork's data ends. Tests: `tests/fork.test.ts`. (The `fork-test` prototype stages were replaced by the first real stages under M6.)
 3. [x] **Track editor (M2, M4).** Dev server only, F4: sections, roadside rules, fork and next stage, with the game as live preview, an overview (plan and height profile; click to put the car there) and Save through a dev-only endpoint (`/__dev/stage/<name>.json` in `vite.config.ts`). Saved files keep the hand-written layout (`tests/stages.test.ts`).
 4. [x] **Traffic and collisions (M5).** Traffic, bumps, spin and roll-over crashes are in; what is left is under M5 below.
+5. [x] **One complete route (M6).** Chōshi → fork → Kujūkuri / Sawara with the countdown, a checkpoint at the fork, the goal and game over. Start-line countdown, title and game-over screens are M7; until then the run starts over by itself.
 
 Long-lead work for the owner, to start in parallel because everything car-related is redone when it lands:
 
@@ -167,12 +168,13 @@ Half of the original's impression is its music.
 
 ### M6 — Stage structure
 
-- [ ] **One complete route first:** stage 1 → fork → stage 2A / 2B with the countdown timer, a checkpoint and game over. Prove the whole loop on two tiers before authoring the other 12 stages.
-- [ ] Stage graph data format: each stage file names its left and right successors; one index lists the 15 stages and 5 goals.
-- [ ] Countdown timer and score in `src/sim/` (the HUD currently shows a lap time counting up).
-- [ ] Checkpoints that extend the time; table of stage lengths and time allowances.
+- [x] **One complete route first:** `choshi` → fork → `kujukuri` / `sawara`, with the countdown, the checkpoint at the fork, the goal line (a chequered gantry, placeholder art) and game over. Tests: `tests/run.test.ts`.
+- [x] Stage graph data format: each stage file names its left and right successors in `fork`; `src/data/stages.json` lists the tiers (tier n has n stages, each forking to the two below it; the last tier ends at goals) and `tests/stages.test.ts` checks the tree. A stage with neither `fork` nor `next` ends at the goal, with a straight run-out built past it.
+- [x] Countdown timer and score (`src/sim/run.ts`): whole seconds counting down, red under ten; score is distance weighted by speed, plus a bonus per second left at the goal. The values are placeholders until they are matched against the original (M9).
+- [x] Checkpoints that extend the time: entering a stage adds its `time` (stage file; default 65 s). Pacing is measured: a clean scripted drive must reach every checkpoint and goal with 8–25 s to spare (`tests/run.test.ts`); today 18 s at the fork, 13 s at Kujūkuri, 10 s at Sawara.
+- [ ] When the time runs out the car brakes to a stop and, 3 s later, the run starts over. Replace with M7's game-over screen and start-line countdown; also the goal's results.
 - [ ] Palette and scenery transitions between stages; palettes per time of day (sunrise → night).
-- [ ] Road layouts for all 15 stages (stage table in `plan.md` → Stages).
+- [ ] Road layouts for all 15 stages (stage table in `plan.md` → Stages): 3 of 15 are first drafts (`choshi`, `kujukuri`, `sawara`), dressed with the placeholder kinds only. Their landmarks (lighthouse, wind turbines, canal town) need art.
 - [ ] 5 ending scenes (2D illustrations).
 
 ### M7 — Game flow and HUD

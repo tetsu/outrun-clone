@@ -1,0 +1,29 @@
+{
+  "name": "Chōshi",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 75,
+  "sections": [
+    { "length": 480 },
+    { "length": 420, "curve": 0.0014 },
+    { "length": 300, "hill": 10 },
+    { "length": 540, "curve": -0.002, "hill": 6 },
+    { "length": 240, "hill": -12 },
+    { "length": 420, "curve": 0.0026 },
+    { "length": 300, "curve": -0.0016 },
+    { "length": 360, "hill": 18 },
+    { "length": 420, "curve": 0.0018, "hill": -18 },
+    { "length": 300 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 1200, "every": 45, "offset": 13, "side": "both" },
+    { "kind": "sign", "from": 400, "to": 900, "every": 150, "offset": 10, "side": "right" },
+    { "kind": "pine", "from": 1200, "to": 2400, "every": 40, "offset": 14, "side": "left" },
+    { "kind": "sign", "from": 1700, "to": 2000, "every": 150, "offset": 10, "side": "left" },
+    { "kind": "palm", "from": 2400, "to": 3060, "every": 36, "offset": 11.5, "side": "both" },
+    { "kind": "sign", "from": 2350, "to": 2500, "every": 150, "offset": 10, "side": "right" },
+    { "kind": "pine", "from": 3060, "to": 100000, "every": 50, "offset": 15, "side": "both" }
+  ],
+  "fork": { "left": "kujukuri", "right": "sawara" }
+}

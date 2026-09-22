@@ -3,6 +3,7 @@ import { Input, type InputState } from "./core/input";
 import { GameLoop, SIM_DT, SIM_HZ } from "./core/loop";
 import { loadSettings, saveSettings } from "./core/settings";
 import { BrowserStorage } from "./core/storage";
+import tree from "./data/stages.json";
 import { Game } from "./game/game";
 import { Hud } from "./game/hud";
 import { OptionsPanel } from "./game/options";
@@ -19,8 +20,8 @@ const STAGES: Stages = Object.fromEntries(
   Object.entries(import.meta.glob<StageData>("./data/stages/*.json", { eager: true, import: "default" }))
     .map(([path, data]) => [path.replace(/^.*\/|\.json$/g, ""), data]),
 );
-/** Where a run starts. The fork prototype until the real stage 1 exists. */
-const FIRST_STAGE = "fork-test";
+/** A run starts at the first stage of the first tier (src/data/stages.json). */
+const FIRST_STAGE = tree.tiers[0][0];
 
 async function main(): Promise<void> {
   const canvas = document.getElementById("game") as HTMLCanvasElement;

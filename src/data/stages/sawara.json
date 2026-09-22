@@ -1,0 +1,23 @@
+{
+  "name": "Sawara",
+  "halfWidth": 6.5,
+  "lanes": 3,
+  "time": 62,
+  "sections": [
+    { "length": 480 },
+    { "length": 420, "curve": 0.0024 },
+    { "length": 300, "curve": -0.0024 },
+    { "length": 360, "hill": 8 },
+    { "length": 480, "curve": 0.0018, "hill": -8 },
+    { "length": 420 },
+    { "length": 420, "curve": -0.003 },
+    { "length": 360, "curve": 0.002 },
+    { "length": 480 }
+  ],
+  "scenery": [
+    { "kind": "post", "from": 0, "to": 100000, "every": 30, "offset": 8.2, "side": "both" },
+    { "kind": "pine", "from": 0, "to": 100000, "every": 30, "offset": 11, "side": "both" },
+    { "kind": "sign", "from": 400, "to": 1300, "every": 150, "offset": 10, "side": "right" },
+    { "kind": "sign", "from": 2400, "to": 3200, "every": 150, "offset": 10, "side": "right" }
+  ]
+}

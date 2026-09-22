@@ -2,6 +2,7 @@ import type { SaveStorage } from "../core/storage";
 import type { Game } from "../game/game";
 import { SCENERY_KINDS } from "../render/placeholders";
 import type { Stages } from "../sim/route";
+import { DEFAULT_STAGE_TIME } from "../sim/run";
 import { buildStage, course, SEGMENT_LENGTH, type SceneryRule, type SectionData, type StageData } from "../sim/track";
 
 /**
@@ -119,6 +120,7 @@ export function installEditor(ctx: EditorContext): void {
       field("name", draft.name, "text", (v) => ((draft.name = v), preview())),
       field("halfWidth", draft.halfWidth, "number", (v) => ((draft.halfWidth = Number(v)), preview())),
       field("lanes", draft.lanes, "number", (v) => ((draft.lanes = Math.max(1, Math.round(Number(v)))), preview())),
+      field("time (s)", draft.time ?? DEFAULT_STAGE_TIME, "number", (v) => ((draft.time = Number(v) || undefined), preview())),
     );
     const others = ["", ...names().filter((n) => n !== current)];
     panel.append(labelled("next", select(others, draft.next ?? "", (v) => {
@@ -429,6 +431,7 @@ export function formatStage(stage: StageData): string {
     `  "name": ${JSON.stringify(stage.name)}`,
     `  "halfWidth": ${stage.halfWidth}`,
     `  "lanes": ${stage.lanes}`,
+    ...(stage.time !== undefined ? [`  "time": ${stage.time}`] : []),
     `  "sections": ${list(stage.sections)}`,
     `  "scenery": ${list(stage.scenery)}`,
   ];

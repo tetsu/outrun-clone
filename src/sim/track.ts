@@ -96,11 +96,13 @@ export interface StageData {
   name: string;
   halfWidth: number;
   lanes: number;
+  /** Seconds on the clock for driving it: the starting time, or added at the checkpoint into it (see run.ts). */
+  time?: number;
   sections: SectionData[];
   scenery: SceneryRule[];
   /** The stage ends in a fork. */
   fork?: ForkData;
-  /** The stage runs straight on into this stage (no fork). */
+  /** The stage runs straight on into this stage (no fork). A stage with neither ends at the goal. */
   next?: string;
 }
 

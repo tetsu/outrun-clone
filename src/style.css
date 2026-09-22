@@ -51,16 +51,47 @@ body {
   transform: translateX(-50%);
   text-align: center;
 }
+#hud-time .hud-value.urgent {
+  color: #ff4a3a;
+}
+#hud-score {
+  top: 3vh;
+  left: 4vh;
+}
+#hud-stage {
+  top: 3vh;
+  right: 4vh;
+}
 #hud-speed {
   bottom: 4vh;
   left: 4vh;
+}
+#hud-banner {
+  position: absolute;
+  top: 30vh;
+  left: 0;
+  right: 0;
+  text-align: center;
+  line-height: 1.2;
+}
+.hud-banner-main {
+  font-size: 9vh;
+  color: #ffd84a;
+  text-shadow: 0 0.5vh 0 rgba(0, 0, 0, 0.6);
+}
+.hud-banner-sub {
+  font-size: 3.5vh;
+}
+.hud-banner-main:empty,
+.hud-banner-sub:empty {
+  display: none;
 }
 #hud-gear {
   bottom: 4vh;
   right: 4vh;
 }
 #hud-fps {
-  top: 1.5vh;
+  top: 0.6vh;
   right: 2vh;
   font-size: 1.6vh;
   font-style: normal;

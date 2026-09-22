@@ -6,6 +6,8 @@ export type Stages = Record<string, StageData>;
 
 /** The next stage is attached once the car is this close to the end of the road built so far. */
 const LOOKAHEAD = 1500;
+/** Straight road past the goal line, so the run-out after the goal never sees the road end. */
+export const GOAL_RUNOUT = 1500;
 
 /** A stage laid down on the route. Distances are along the route's track. */
 export interface PlacedStage {
@@ -16,13 +18,18 @@ export interface PlacedStage {
   commit?: number;
   /** The branch taken, once committed. */
   branch?: "left" | "right";
+  /** Where entering the stage counts (the checkpoint): the fork's commit point, or its start after a plain join. */
+  checkpoint: number;
+  /** The goal line, when the stage ends the run. */
+  goal?: number;
 }
 
 /**
  * The road of a run: stages laid end to end as the car reaches them, on one track that does not
  * loop. A stage that ends in a fork is followed by nothing until the car commits to a branch;
  * then the branch's stage is attached. The car's lateral frame is re-centred on each new
- * stage's road, which moves the car and the road together and so cannot be seen.
+ * stage's road, which moves the car and the road together and so cannot be seen. A stage with
+ * no fork and no next stage ends at the goal line, with a straight run-out built past it.
  */
 export class Route {
   readonly track: Track;
@@ -30,14 +37,14 @@ export class Route {
   /** Set by update() when taking the right branch swapped the roads from this distance on; the caller clears it. */
   swappedFrom: number | null = null;
 
-  constructor(readonly stages: Stages, first: string) {
+  constructor(readonly stages: Stages, readonly first: string) {
     const stage = this.stage(first);
     this.track = { name: stage.name, segments: [], length: 0, halfWidth: stage.halfWidth, lanes: stage.lanes, loop: false };
     this.append(first);
   }
 
   /** Starts over with `first` as the only stage, at distance 0. */
-  restart(first: string): void {
+  restart(first = this.first): void {
     this.track.segments.length = 0;
     this.track.length = 0;
     this.placed.length = 0;
@@ -86,11 +93,26 @@ export class Route {
     const segments = this.track.segments;
     const last = segments[segments.length - 1];
     const centre = last?.a2 ?? 0;
-    const built = buildStage(this.stage(id), course, last?.y2 ?? 0, centre, segments.length);
+    const stage = this.stage(id);
+    const goal = !stage.fork && !stage.next;
+    const data = goal ? { ...stage, sections: [...stage.sections, { length: GOAL_RUNOUT }] } : stage;
+    const built = buildStage(data, course, last?.y2 ?? 0, centre, segments.length);
     const start = this.track.length;
     for (const segment of built.segments) segments.push(segment);
     this.track.length = segments.length * SEGMENT_LENGTH;
-    this.placed.push({ id, start, end: start + built.length, commit: built.commit === undefined ? undefined : start + built.commit });
+    const previous = this.placed[this.placed.length - 1];
+    const placed: PlacedStage = {
+      id, start, end: start + built.length,
+      commit: built.commit === undefined ? undefined : start + built.commit,
+      checkpoint: previous?.commit ?? start,
+    };
+    if (goal) {
+      placed.end -= GOAL_RUNOUT;
+      placed.goal = placed.end;
+      // the gantry over the goal line
+      segments[Math.round(placed.goal / SEGMENT_LENGTH)].scenery.push({ kind: "goal", offset: 0, road: "a" });
+    }
+    this.placed.push(placed);
 
     if (centre !== 0) {
       for (const s of segments) {

@@ -3,6 +3,7 @@ import { collide, stepCrash, type HitEvent } from "../sim/collision";
 import { createPlayer, stepPlayer, type PlayerState } from "../sim/player";
 import { Random } from "../sim/random";
 import type { Route } from "../sim/route";
+import { DEFAULT_STAGE_TIME, Run, type Banner, type RunPhase } from "../sim/run";
 import { Traffic } from "../sim/traffic";
 import { heightAt, roadUnder, wrapDistance, type Track } from "../sim/track";
 
@@ -23,6 +24,8 @@ export interface RenderState {
   ghost: number;
   /** Traffic, interpolated like the car. */
   vehicles: { id: number; kind: string; road: "a" | "b"; z: number; x: number }[];
+  /** The run against the clock; none on a looping test course. */
+  run: { phase: RunPhase; timeLeft: number; score: number; stage: number; banner: Banner; bannerTime: number; bonus: number } | null;
   /** Total distance driven, never wrapped; drives the background scroll and wheel effects. */
   odometer: number;
   /** Sideways scroll of the background, in screen heights. */
@@ -40,6 +43,8 @@ export class Game {
   track: Track;
   /** The run's stages, when driving a route rather than a looping test course. */
   route: Route | null;
+  /** The clock, score and how the run ends; a route only. */
+  readonly run: Run | null;
   /** Traffic runs on a route only; a looping test course is kept clear for tuning. */
   readonly traffic = new Traffic(1);
   /** Draws for collisions (which way a head-on hit spins). */
@@ -50,7 +55,15 @@ export class Game {
   constructor(course: Track | Route) {
     this.route = "placed" in course ? course : null;
     this.track = "placed" in course ? course.track : course;
-    if (this.route) this.traffic.reset(this.track, 0);
+    this.run = this.route ? new Run() : null;
+    if (this.route) {
+      this.traffic.reset(this.track, 0);
+      this.run!.start(this.stageTime(this.route.first));
+    }
+  }
+
+  private stageTime(stage: string): number {
+    return this.route?.stages[stage]?.time ?? DEFAULT_STAGE_TIME;
   }
 
   /** Swap in a rebuilt looping course (the tuning panel does this), keeping the car where it is. */
@@ -70,6 +83,14 @@ export class Game {
     this.player.crash = 0;
     this.previous = { ...this.player };
     this.traffic.reset(this.track, z);
+    this.run?.start(this.stageTime(stage));
+  }
+
+  /** A new run from the start line: the car at rest on the first stage. */
+  restartRun(): void {
+    if (!this.route) return;
+    Object.assign(this.player, createPlayer());
+    this.restartRoute(this.route.first);
   }
 
   /** Put the car in a given state, with nothing to interpolate from (replays start here). */
@@ -92,16 +113,31 @@ export class Game {
       this.route.swappedFrom = null;
     }
 
+    // Once the run has ended the car is no longer the player's: it brakes to a stop.
+    const driving = !this.run || this.run.phase === "driving";
+    const control = driving ? input : { steer: input.steer, throttle: 0, brake: 0.7, gearToggle: false };
     const curve = roadUnder(this.track, this.player.z, this.player.x).curve;
     if (this.player.crash) stepCrash(this.player, this.track, dt);
-    else stepPlayer(this.player, input, this.track, dt);
+    else stepPlayer(this.player, control, this.track, dt);
     if (this.route) {
       this.traffic.step(this.track, this.player.z, dt);
       this.lastHit = collide(this.player, this.track, this.traffic, this.random, dt);
     }
+    if (this.route && this.run) this.stepRun(this.route, this.run, dt);
     this.odometer += this.player.speed * dt;
     // the horizon slides against the bend: heading change = curvature * distance
     this.scroll += curve * this.player.speed * dt * 0.9;
+  }
+
+  /** The checkpoints and the goal line the car has just passed, then the clock. */
+  private stepRun(route: Route, run: Run, dt: number): void {
+    const p = this.player;
+    const placed = route.placed;
+    while (run.stage < placed.length && p.z >= placed[run.stage].checkpoint) run.enter(this.stageTime(placed[run.stage].id));
+    const current = placed[Math.min(run.stage, placed.length) - 1];
+    if (current.goal !== undefined && p.z >= current.goal) run.finish();
+    run.step(dt, p.speed);
+    if (run.finished) this.restartRun();
   }
 
   renderState(alpha: number): RenderState {
@@ -128,6 +164,10 @@ export class Game {
         return { id: v.id, kind: v.kind, road: v.road, z: p ? lerp(p.z, v.z) : v.z, x: p ? lerp(p.x, v.x) : v.x };
       }),
       lapTime: b.lapTime < a.lapTime ? b.lapTime : lerp(a.lapTime, b.lapTime),
+      run: this.run && {
+        phase: this.run.phase, timeLeft: this.run.timeLeft, score: this.run.score, stage: this.run.stage,
+        banner: this.run.banner, bannerTime: this.run.bannerTime, bonus: this.run.bonus,
+      },
       odometer: lerp(this.previousOdometer, this.odometer),
       backgroundScroll: lerp(this.previousScroll, this.scroll),
     };

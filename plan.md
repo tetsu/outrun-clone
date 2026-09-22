@@ -198,12 +198,13 @@ Decisions made while building:
 - **Traffic all drives the player's way**, as in the original, on every road.
 - **Generated characters are weighted by body region, not by Blender's automatic weights.** Bone-heat weighting fails on meshes made of many overlapping shells, which is what generated models are.
 
-- Road fork and routes: a stage ending in a fork splits into two roads and the car commits to the branch it is on; the branch's stage is attached. Prototype stages `fork-test` → `fork-test-left` / `fork-test-right`.
-- Track editor (dev server, F4): sections, roadside rules, fork and next stage, live preview, overview map, save to the stage files.
-- Traffic and collisions: 8 kinds of lane-keeping traffic from a seeded generator, bumps, spin and roll-over crashes with the occupants thrown out, reset to the road.
+- Road fork and routes: a stage ending in a fork splits into two roads and the car commits to the branch it is on; the branch's stage is attached.
+- Track editor (dev server, F4): sections, roadside rules, fork and next stage, time allowance, live preview, overview map, save to the stage files.
+- Traffic and collisions: 10 kinds of lane-keeping traffic from a seeded generator, bumps, spin and roll-over crashes with the occupants thrown out, reset to the road.
+- One complete route (start of milestone 6): stage 1 (Chōshi) forking to Kujūkuri or Sawara, with the countdown, the checkpoint at the fork, the goal line and game over (`src/sim/run.ts`, `src/data/stages.json`). The stage times are set so that a clean scripted drive reaches each checkpoint and goal with 10–18 s to spare, checked by a test.
 
 Not built yet from milestones 1–2: a code licence and `ASSETS.md`.
 
 ## Next step
 
-One complete route (M6): stage 1 → fork → stage 2A / 2B with the countdown timer, a checkpoint and game over, on the fork, editor and traffic built so far. The full task list is in [TODO.md](TODO.md).
+Game flow and HUD (M7): the start-line countdown, title screen, game over and goal results, so the route built in M6 plays as a game from "press start" to name entry. Then the remaining 12 stages. The full task list is in [TODO.md](TODO.md).
